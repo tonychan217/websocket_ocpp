@@ -8,7 +8,7 @@ websocket-demo
 
 - PiFace server:
   * $> git clone https://github.com/tonychan217/websocket-demo.git
-  * $> cd piface-python-websocket-server
+  * $> cd websocket-demo
   * $> python server.py
 
 - Browser: 
