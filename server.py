@@ -25,8 +25,7 @@ class FakePort:
 pifacedigital = FakePiFaceDigital()
 
 class IndexHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
-    def get(self):
+    async def get(self):
         self.render("index.html")  # Serve the "index.html" page
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
