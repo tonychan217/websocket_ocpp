@@ -1,96 +1,100 @@
-#!/usr/bin/python
-
-# Python WebSocket Server for Raspberry Pi / PiFace
-# by David Art [aka] adcomp <david.madbox@gmail.com>
-
-import tornado.httpserver
-import tornado.websocket
 import tornado.ioloop
 import tornado.web
-
+import tornado.websocket
+import tornado.httpserver
 import datetime
 import json
 import sys
-import os
 
-# PiFace module & init
-import pifacedigitalio as pfio
-pfio.init()
-pifacedigital = pfio.PiFaceDigital()
+# Fake PiFace data to simulate input/output states
+class FakePiFaceDigital:
+    def __init__(self):
+        self.input_port = FakePort()
+        self.output_port = FakePort()
+
+class FakePort:
+    """Simulates an 8-bit input/output port."""
+    def __init__(self):
+        self.value = 0b00000000  # All pins start as low (0)
+
+    def toggle_pin(self, pin):
+        """Toggle the state of a specific pin."""
+        self.value ^= (1 << pin)  # XOR flips the specific pin
+
+# Initialize a fake PiFace for simulation purposes
+pifacedigital = FakePiFaceDigital()
 
 class IndexHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def get(self):
-        self.render("index.html")
+        self.render("index.html")  # Serve the "index.html" page
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
-  clients = []
-  last_data = None
+    clients = []  # Track all connected clients
+    last_data = None  # Store the last state sent to clients
 
-  def open(self):
-    self.connected = True
-    print("new connection")
-    self.clients.append(self)
-    self.timeout_loop()
+    def open(self):
+        self.connected = True
+        print("New connection")
+        self.clients.append(self)
+        self.timeout_loop()
 
-  # """ Tornado 4.0 introduced an, on by default, same origin check.
-  # This checks that the origin header set by the browser is the same as the host header """
-  def check_origin(self, origin):
-    return True
+    def check_origin(self, origin):
+        """Allow connections from any origin."""
+        return True
 
-  def on_message(self, message):
-    # message is the PIN number you want to toggle
-    pin = int(message)
-    # read output state
-    r_output = '{0:08b}'.format(pifacedigital.output_port.value)
-    # toggle output
-    pin_state = int(r_output[7-pin]);
-    pfio.digital_write(pin, not pin_state)
-    # FIXME! I need to check with the loop so I don't send twice ?
-    self.timeout_loop()
+    def on_message(self, message):
+        """Handle messages from the client."""
+        try:
+            # Simulate toggling a pin based on the received message
+            pin = int(message)
+            pifacedigital.output_port.toggle_pin(pin)
+            self.timeout_loop()
+        except ValueError:
+            print("Invalid message received:", message)
 
-  def on_close(self):
-    self.connected = False
-    print("connection closed")
-    self.clients.remove(self)
+    def on_close(self):
+        self.connected = False
+        print("Connection closed")
+        self.clients.remove(self)
 
-  def timeout_loop(self):
-    # read PiFace input/output state
-    r_input = '{0:08b}'.format(pifacedigital.input_port.value)
-    r_output = '{0:08b}'.format(pifacedigital.output_port.value)
+    def timeout_loop(self):
+        """Simulate periodically sending input/output states to clients."""
+        # Simulate input/output states
+        r_input = '{0:08b}'.format(pifacedigital.input_port.value)
+        r_output = '{0:08b}'.format(pifacedigital.output_port.value)
 
-    # obj -> javascript
-    data = {"in": [], "out": []}
+        # Prepare data to send to clients
+        data = {"in": [], "out": []}
+        for i in range(8):
+            data['in'].append(r_input[7 - i])
+            data['out'].append(r_output[7 - i])
 
-    for i in range(8):
-      data['in'].append(r_input[7-i])
-      data['out'].append(r_output[7-i])
+        # Only send updates if the data has changed
+        if data != self.last_data:
+            for client in self.clients:
+                client.write_message(json.dumps(data))
+        self.last_data = data
 
-    # only send message if input/output changed
-    if data != self.last_data:
-      for client in self.clients:
-        client.write_message(json.dumps(data))
-    self.last_data = data
+        # Continue looping if the client is still connected
+        if self.connected:
+            tornado.ioloop.IOLoop.instance().add_timeout(
+                datetime.timedelta(seconds=0.5), self.timeout_loop
+            )
 
-    # here come the magic part .. loop
-    # FIXME! this is going pretty bad if too many clients I think ..
-    # no other way to do this ?
-    if self.connected:
-      tornado.ioloop.IOLoop.instance().add_timeout(datetime.timedelta(seconds=.5), self.timeout_loop)
-
+# Tornado application setup
 application = tornado.web.Application([
-  (r'/', IndexHandler),
-  (r'/piface', WebSocketHandler)
+    (r'/', IndexHandler),        # HTTP handler for the main page
+    (r'/piface', WebSocketHandler)  # WebSocket handler
 ])
 
 if __name__ == "__main__":
-  http_server = tornado.httpserver.HTTPServer(application)
-  http_server.listen(8888)
-  print("Raspberry Pi - PiFace")
-  print("WebSocket Server start ..")
-  try:
-    tornado.ioloop.IOLoop.instance().start()
-  except KeyboardInterrupt:
-    print('\nExit ..')
-    sys.exit(0)
+    http_server = tornado.httpserver.HTTPServer(application)
+    http_server.listen(8888)  # Start the server on port 8888
+    print("WebSocket Server started at localhost:8888")
+    try:
+        tornado.ioloop.IOLoop.instance().start()
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        sys.exit(0)
