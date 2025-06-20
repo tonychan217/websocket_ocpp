@@ -1,16 +1,13 @@
-piface-python-websocket-server
+websocket-demo
 ==============================
-- Hardware Prerequisites:
-  * PiFace: http://www.piface.org.uk/
 
-- Software Prerequisites:
 -  Tornado:
   * $> sudo apt-get install python-tornado 
 -  JSON:
   * $> sudo apt-get install python-simplejson
 
 - PiFace server:
-  * $> git clone https://github.com/adcomp/piface-python-websocket-server.git
+  * $> git clone https://github.com/tonychan217/websocket-demo.git
   * $> cd piface-python-websocket-server
   * $> python server.py
 
@@ -20,6 +17,3 @@ piface-python-websocket-server
 - Video:
   * https://www.youtube.com/watch?v=eJpGfqwGr08
 
-- References:
-  * http://www.piface.org.uk/guides/Install_PiFace_Software/
-  * https://piface.github.io/pifacedigitalio/
