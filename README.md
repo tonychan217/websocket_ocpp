@@ -1,6 +1,7 @@
 websocket-demo
 ==============================
-
+-  Working environment:
+  * $> source myenv/bin/activate
 -  Tornado:
   * $> sudo apt-get install python-tornado 
 -  JSON:
