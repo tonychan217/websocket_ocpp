@@ -2,7 +2,7 @@ import asyncio
 import websockets
 from datetime import datetime  # For real-time timestamps
 
-PORT = 2409
+PORT = 2406
 
 async def send_messages(websocket):
     """
