@@ -9,7 +9,7 @@
 
 - Websocket server:
   * $> git clone https://github.com/tonychan217/websocket_ocpp.git
-  * $> cd websocket_ocpp/python-websockets
+  * $> cd websocket_ocpp/WebSockets/python-websockets
   * $> python server_echo_broadcast.py
 
 - Browser: 
