@@ -10,7 +10,7 @@
 - Websocket server:
   * $> git clone https://github.com/tonychan217/websocket_ocpp.git
   * $> cd websocket_ocpp
-  * $> python server_echo_broadcast.py
+  * $> python server_ocpp.py
 
 - Browser: 
   * http//[your_raspberrypi_IP]:2406
