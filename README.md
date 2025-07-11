@@ -1,20 +1,23 @@
-websocket-demo
+# websocket_ocpp
 ==============================
--  Working environment:
-  * $> source myenv/bin/activate
--  Tornado:
-  * $> sudo apt-get install python-tornado 
--  JSON:
-  * $> sudo apt-get install python-simplejson
+- Source Reference:
+  * ParametricCamp: https://github.com/ParametricCamp/TutorialFiles
 
-- PiFace server:
-  * $> git clone https://github.com/tonychan217/websocket-demo.git
-  * $> cd websocket-demo
-  * $> python server.py
+- Software Prerequisites:
+   Change environment:
+  * $> source myenv/bin/activate
+
+- Websocket server:
+  * $> git clone https://github.com/tonychan217/websocket_ocpp.git
+  * $> cd websocket_ocpp/WebSockets/python-websockets
+  * $> python server_echo_broadcast.py
 
 - Browser: 
-  * http//[your_raspberrypi_IP]:8888
+  * http//[your_raspberrypi_IP]:2406
 
 - Video:
-  * https://www.youtube.com/watch?v=eJpGfqwGr08
+  * https://www.youtube.com/watch?v=SfQd1FdcTlI
 
+- Other References:
+  * http://www.piface.org.uk/guides/Install_PiFace_Software/
+  * https://piface.github.io/pifacedigitalio/
