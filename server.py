@@ -1,99 +1,63 @@
-import tornado.ioloop
-import tornado.web
-import tornado.websocket
-import tornado.httpserver
-import datetime
-import json
-import sys
+import asyncio
+import websockets
+from datetime import datetime  # For real-time timestamps
 
-# Fake PiFace data to simulate input/output states
-class FakePiFaceDigital:
-    def __init__(self):
-        self.input_port = FakePort()
-        self.output_port = FakePort()
+PORT = 7890
 
-class FakePort:
-    """Simulates an 8-bit input/output port."""
-    def __init__(self):
-        self.value = 0b00000000  # All pins start as low (0)
+# Check websockets version
+WEBSOCKETS_VERSION = tuple(map(int, websockets.__version__.split(".")))
 
-    def toggle_pin(self, pin):
-        """Toggle the state of a specific pin."""
-        self.value ^= (1 << pin)  # XOR flips the specific pin
-
-# Initialize a fake PiFace for simulation purposes
-pifacedigital = FakePiFaceDigital()
-
-class IndexHandler(tornado.web.RequestHandler):
-    async def get(self):
-        self.render("index.html")  # Serve the "index.html" page
-
-class WebSocketHandler(tornado.websocket.WebSocketHandler):
-
-    clients = []  # Track all connected clients
-    last_data = None  # Store the last state sent to clients
-
-    def open(self):
-        self.connected = True
-        print("New connection")
-        self.clients.append(self)
-        self.timeout_loop()
-
-    def check_origin(self, origin):
-        """Allow connections from any origin."""
-        return True
-
-    def on_message(self, message):
-        """Handle messages from the client."""
+# WebSocket handler
+if WEBSOCKETS_VERSION < (10, 1):  # For websockets < 10.1
+    async def echo(websocket, path):  # path is required
+        """
+        WebSocket handler for older versions of websockets.
+        """
+        print(f"New connection established at path: {path}")
         try:
-            # Simulate toggling a pin based on the received message
-            pin = int(message)
-            pifacedigital.output_port.toggle_pin(pin)
-            self.timeout_loop()
-        except ValueError:
-            print("Invalid message received:", message)
+            async for message in websocket:
+                # Get the current time and format it
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"[{current_time}] Received: {message}")
+                await websocket.send(f"Echo: {message}")
+        except websockets.exceptions.ConnectionClosedOK:
+            print("Connection closed cleanly.")
+        except websockets.exceptions.ConnectionClosedError as e:
+            print(f"Connection error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+else:  # For websockets >= 10.1
+    async def echo(websocket):  # path is optional or deprecated
+        """
+        WebSocket handler for newer versions of websockets.
+        """
+        print("New connection established.")
+        try:
+            async for message in websocket:
+                # Get the current time and format it
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"[{current_time}] Received: {message}")
+                await websocket.send(f"Echo: {message}")
+        except websockets.exceptions.ConnectionClosedOK:
+            print("Connection closed cleanly.")
+        except websockets.exceptions.ConnectionClosedError as e:
+            print(f"Connection error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
-    def on_close(self):
-        self.connected = False
-        print("Connection closed")
-        self.clients.remove(self)
+# Main server function
+async def main():
+    """
+    Starts the WebSocket server.
+    """
+    if WEBSOCKETS_VERSION < (10, 1):
+        server = websockets.serve(echo, "0.0.0.0", PORT)  # path required
+    else:
+        server = websockets.serve(echo, "0.0.0.0", PORT)  # path optional
 
-    def timeout_loop(self):
-        """Simulate periodically sending input/output states to clients."""
-        # Simulate input/output states
-        r_input = '{0:08b}'.format(pifacedigital.input_port.value)
-        r_output = '{0:08b}'.format(pifacedigital.output_port.value)
-
-        # Prepare data to send to clients
-        data = {"in": [], "out": []}
-        for i in range(8):
-            data['in'].append(r_input[7 - i])
-            data['out'].append(r_output[7 - i])
-
-        # Only send updates if the data has changed
-        if data != self.last_data:
-            for client in self.clients:
-                client.write_message(json.dumps(data))
-        self.last_data = data
-
-        # Continue looping if the client is still connected
-        if self.connected:
-            tornado.ioloop.IOLoop.instance().add_timeout(
-                datetime.timedelta(seconds=0.5), self.timeout_loop
-            )
-
-# Tornado application setup
-application = tornado.web.Application([
-    (r'/', IndexHandler),        # HTTP handler for the main page
-    (r'/piface', WebSocketHandler)  # WebSocket handler
-])
+    async with server:
+        print(f"Server is running on ws://0.0.0.0:{PORT}")
+        await asyncio.Future()  # Keeps the server running forever
 
 if __name__ == "__main__":
-    http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(8888)  # Start the server on port 8888
-    print("WebSocket Server started at localhost:8888")
-    try:
-        tornado.ioloop.IOLoop.instance().start()
-    except KeyboardInterrupt:
-        print("\nExiting...")
-        sys.exit(0)
+    asyncio.run(main())
