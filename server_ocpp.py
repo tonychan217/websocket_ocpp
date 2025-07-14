@@ -1,63 +1,88 @@
+#!/usr/bin/env python3
 import asyncio
+import json
 import websockets
-from datetime import datetime  # For real-time timestamps
+from datetime import datetime
 
 PORT = 2409
 
-# Check websockets version
-WEBSOCKETS_VERSION = tuple(map(int, websockets.__version__.split(".")))
+# Keep track of all connected clients
+connected = set()
 
-# WebSocket handler
-if WEBSOCKETS_VERSION < (10, 1):  # For websockets < 10.1
-    async def echo(websocket, path):  # path is required
-        """
-        WebSocket handler for older versions of websockets.
-        """
-        print(f"New connection established at path: {path}")
-        try:
-            async for message in websocket:
-                # Get the current time and format it
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"[{current_time}] Received: {message}")
-                await websocket.send(f"Echo: {message}")
-        except websockets.exceptions.ConnectionClosedOK:
-            print("Connection closed cleanly.")
-        except websockets.exceptions.ConnectionClosedError as e:
-            print(f"Connection error: {e}")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-else:  # For websockets >= 10.1
-    async def echo(websocket):  # path is optional or deprecated
-        """
-        WebSocket handler for newer versions of websockets.
-        """
-        print("New connection established.")
-        try:
-            async for message in websocket:
-                # Get the current time and format it
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"[{current_time}] Received: {message}")
-                await websocket.send(f"Echo: {message}")
-        except websockets.exceptions.ConnectionClosedOK:
-            print("Connection closed cleanly.")
-        except websockets.exceptions.ConnectionClosedError as e:
-            print(f"Connection error: {e}")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
+def current_time():
+    """Return a formatted timestamp."""
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Main server function
+async def handler(websocket, path=None):
+    # Register new client
+    addr = websocket.remote_address
+    print(f"→ New connection from {addr}")
+    connected.add(websocket)
+
+    # Send a one-off welcome
+    await websocket.send(json.dumps({
+        "type":    "welcome",
+        "time":    current_time(),
+        "message": "You are now connected to OCPP Server"
+    }))
+
+    try:
+        async for message in websocket:
+           
+            print(f"[{current_time()}] ► Received from {addr}: {message}")
+
+            # 1) Echo back to the sender (ESP32 expects this)
+            try:
+                await websocket.send(f"Echo: {message}")
+            except Exception:
+                pass
+
+            # 2) Broadcast the *raw* message to all other clients
+            dead = set()
+            for ws in connected:
+                if ws is websocket:
+                    continue
+                try:
+                    await ws.send(message)
+                except Exception:
+                    dead.add(ws)
+
+            # Clean up any dead connections
+            for ws in dead:
+                connected.remove(ws)
+
+    except websockets.exceptions.ConnectionClosed:
+        pass
+    except Exception as e:
+        print(f"[{current_time()}] !!! Error: {e}")
+    finally:
+        connected.remove(websocket)
+        print(f"[{current_time()}] ◀ Client disconnected — {len(connected)} remaining")
+
+
+
+async def broadcaster():
+    # Optional heartbeat so you know the server is alive
+    while True:
+        if connected:
+            beat = json.dumps({
+                "type": "heartbeat",
+                "time": current_time()
+            })
+            await asyncio.gather(*(ws.send(beat) for ws in connected))
+            print(f"[{current_time()}] ◉ Heartbeat → {len(connected)} client(s)")
+        await asyncio.sleep(5)
+
 async def main():
-    """
-    Starts the WebSocket server.
-    """
-    if WEBSOCKETS_VERSION < (10, 1):
-        server = websockets.serve(echo, "0.0.0.0", PORT)  # path required
-    else:
-        server = websockets.serve(echo, "0.0.0.0", PORT)  # path optional
-
-    async with server:
-        print(f"Server is running on ws://0.0.0.0:{PORT}")
-        await asyncio.Future()  # Keeps the server running forever
+    # Serve with a handler that accepts (websocket, path) signature
+    async with websockets.serve(handler, "0.0.0.0", PORT):
+        print(f"[{current_time()}] Listening on ws://0.0.0.0:{PORT}")
+        # start background heartbeat
+        asyncio.create_task(broadcaster())
+        await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nServer shut down by user.")
