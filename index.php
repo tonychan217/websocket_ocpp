@@ -23,7 +23,7 @@ header('Content-Type: text/html; charset=UTF-8');
     /* CONTAINER */
     .container {
       width: 95%;
-      max-width: 1000px;
+      max-width: 1500px;
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.1);
@@ -104,7 +104,6 @@ header('Content-Type: text/html; charset=UTF-8');
 </head>
 <body>
   <div class="container">
-    <div class="header">OCPP WS Server → Live Log</div>
     <div class="content">
       <div id="log">
         <div class="entry status"><span class="ts">--:--:--</span>Connecting…</div>
