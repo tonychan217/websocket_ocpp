@@ -1,5 +1,5 @@
 <?php
-// index.php — Live OCPP WS Log with Detail Panel
+// index.php -- Live OCPP WS Log with “latest‐only” Categorized Detail Panel + JSON breakdown
 header('Content-Type: text/html; charset=UTF-8');
 ?>
 <!DOCTYPE html>
@@ -7,7 +7,7 @@ header('Content-Type: text/html; charset=UTF-8');
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Live OCPP WS Log</title>
+  <title>OCPP Monitor</title>
   <style>
     /* RESET & BASE */
     *, *::before, *::after { box-sizing: border-box; }
@@ -33,6 +33,7 @@ header('Content-Type: text/html; charset=UTF-8');
       overflow: hidden;
     }
     .header {
+      border: 1px solid #ddd;
       background: #007bff;
       color: #fff;
       padding: 1rem;
@@ -71,28 +72,27 @@ header('Content-Type: text/html; charset=UTF-8');
       font-style: italic;
       color: #555;
     }
-    /* DETAIL AREA */
-    .jsonRaw {
-      background: #f8f9fa;
-      padding: 0.75rem;
-      border-radius: 4px;
-      font-family: monospace;
-      white-space: pre;
-      overflow-x: auto;
+    /* DETAIL AREA: three categories */
+    #detail .subheader {
+      padding: 0.5rem;
+      font-weight: bold;
+      margin-top: 1rem;
     }
-    table {
+    #detail table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 1rem;
-      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      font-family: monospace;
+      font-size: 0.9rem;
     }
-    th, td {
+    #detail th, #detail td {
       padding: 0.5rem;
       border: 1px solid #ddd;
       text-align: left;
-      vertical-align: top;
+      word-break: break-all;
     }
-    th {
+    #detail th {
       background: #f0f0f0;
     }
     /* RESPONSIVE */
@@ -104,165 +104,164 @@ header('Content-Type: text/html; charset=UTF-8');
 </head>
 <body>
   <div class="container">
+    <div class="header">OCPP Monitor</div>
     <div class="content">
       <div id="log">
         <div class="entry status"><span class="ts">--:--:--</span>Connecting…</div>
       </div>
       <div id="detail">
-        <div class="entry status"><span class="ts">--:--:--</span>No message selected</div>
+        <div id="detail-status" class="entry status"><span class="ts">--:--:--</span>No messages yet</div>
+        <!-- Welcome -->
+        <div class="subheader">Startup</div>
+        <table id="welcome-table">
+          <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <table id="welcome-desc">
+          <thead><tr><th>Name</th><th>Value</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <!-- Heartbeat -->
+        <div class="subheader">Heartbeat</div>
+        <table id="heartbeat-table">
+          <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <table id="heartbeat-desc">
+          <thead><tr><th>Name</th><th>Value</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <!-- Other -->
+        <div class="subheader">Messages</div>
+        <table id="other-table">
+          <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <table id="other-desc">
+          <thead><tr><th>Name</th><th>Value</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
   </div>
 
   <script>
   (function(){
-    const host = location.hostname;
-    const port = 2409;
-    const url  = `ws://${host}:${port}`;
-    const log  = document.getElementById('log');
-    const detail = document.getElementById('detail');
-
-    // Map array indices to OCPP fields
-    const fieldNames = {
-      0: "MessageTypeId",
-      1: "UniqueId",
-      2: "Action",
-      3: "Payload"
-    };
+    const host = location.hostname, port = 2409, url = `ws://${host}:${port}`;
+    const log     = document.getElementById('log'),
+          status  = document.getElementById('detail-status'),
+          tblWelcome   = document.querySelector('#welcome-table tbody'),
+          descWelcome  = document.querySelector('#welcome-desc tbody'),
+          tblHeartbeat = document.querySelector('#heartbeat-table tbody'),
+          descHeartbeat= document.querySelector('#heartbeat-desc tbody'),
+          tblOther     = document.querySelector('#other-table tbody'),
+          descOther    = document.querySelector('#other-desc tbody');
+    let firstMessage = true;
 
     function nowTs() {
-      const d = new Date();
-      const z = n => String(n).padStart(2,'0');
+      const d = new Date(), z = n=>String(n).padStart(2,'0');
       return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`
            + ` ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
     }
 
     function appendLog(msg, cls='') {
-      const e = document.createElement('div');
-      e.className = 'entry' + (cls ? ' ' + cls : '');
-      const ts = document.createElement('span');
-      ts.className = 'ts';
-      ts.textContent = nowTs();
+      const e = document.createElement('div'), ts = document.createElement('span');
+      e.className = 'entry' + (cls? ' '+cls:'');
+      ts.className = 'ts'; ts.textContent = nowTs();
       e.appendChild(ts);
       e.appendChild(document.createTextNode(msg));
       log.appendChild(e);
       log.scrollTop = log.scrollHeight;
     }
 
-    function showDetail(raw) {
-      detail.innerHTML = ''; // clear
-      // timestamp
-      const hdr = document.createElement('div');
-      hdr.className = 'entry status';
-      const ts = document.createElement('span');
-      ts.className = 'ts';
-      ts.textContent = nowTs();
-      hdr.appendChild(ts);
-      hdr.appendChild(document.createTextNode('Detail view'));
-      detail.appendChild(hdr);
-
-      // raw JSON
-      const pre = document.createElement('div');
-      pre.className = 'jsonRaw';
-      pre.textContent = raw;
-      detail.appendChild(pre);
-
-      // parse
+    function setLatest(tbodyRaw, tbodyDesc, raw) {
+      // raw JSON row
+      tbodyRaw.innerHTML = '';
+      const trRaw = document.createElement('tr'),
+            tdTs = document.createElement('td'),
+            tdRaw= document.createElement('td');
+      tdTs.innerHTML = `<span class="ts">${nowTs()}</span>`;
+      tdRaw.textContent = raw;
+      trRaw.appendChild(tdTs);
+      trRaw.appendChild(tdRaw);
+      tbodyRaw.appendChild(trRaw);
+      // description rows
+      tbodyDesc.innerHTML = '';
       let obj;
       try { obj = JSON.parse(raw); }
-      catch (e) {
-        const err = document.createElement('div');
-        err.className = 'entry status';
-        err.textContent = 'Invalid JSON';
-        detail.appendChild(err);
+      catch {
+        const tr = document.createElement('tr'),
+              tdN = document.createElement('td'),
+              tdV = document.createElement('td');
+        tdN.textContent = 'raw';
+        tdV.textContent = raw;
+        tr.appendChild(tdN); tr.appendChild(tdV);
+        tbodyDesc.appendChild(tr);
         return;
       }
-
-      // If array: top-level fields
       if (Array.isArray(obj)) {
-        const tbl = document.createElement('table');
-        const thead = document.createElement('thead');
-        thead.innerHTML = '<tr><th>Index</th><th>Field</th><th>Value</th></tr>';
-        tbl.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        obj.forEach((val,i) => {
-          const tr = document.createElement('tr');
-          const idx = document.createElement('td');
-          idx.textContent = i;
-          const fn = document.createElement('td');
-          fn.textContent = fieldNames[i]||'';
-          const vv = document.createElement('td');
-          vv.textContent = (typeof val==='object')
-            ? JSON.stringify(val)
-            : String(val);
-          tr.appendChild(idx);
-          tr.appendChild(fn);
-          tr.appendChild(vv);
-          tbody.appendChild(tr);
+        obj.forEach((val,i)=> {
+          const tr = document.createElement('tr'),
+                tdN = document.createElement('td'),
+                tdV = document.createElement('td');
+          tdN.textContent = `Index ${i}`;
+          tdV.textContent = (typeof val==='object')? JSON.stringify(val): String(val);
+          tr.appendChild(tdN); tr.appendChild(tdV);
+          tbodyDesc.appendChild(tr);
         });
-        tbl.appendChild(tbody);
-        detail.appendChild(tbl);
-
-        // If payload is object, show its key/values
-        if (typeof obj[3] === 'object' && obj[3] !== null) {
-          const subh = document.createElement('div');
-          subh.className = 'entry status';
-          subh.textContent = 'Payload fields';
-          detail.appendChild(subh);
-
-          const ptbl = document.createElement('table');
-          const pthead = document.createElement('thead');
-          pthead.innerHTML = '<tr><th>Key</th><th>Value</th></tr>';
-          ptbl.appendChild(pthead);
-          const ptbody = document.createElement('tbody');
-          Object.entries(obj[3]).forEach(([k,v]) => {
-            const pr = document.createElement('tr');
-            const pk = document.createElement('td'); pk.textContent = k;
-            const pv = document.createElement('td'); pv.textContent = String(v);
-            pr.appendChild(pk); pr.appendChild(pv);
-            ptbody.appendChild(pr);
-          });
-          ptbl.appendChild(ptbody);
-          detail.appendChild(ptbl);
-        }
-      }
-      // If object: generic key/value table
-      else if (typeof obj === 'object' && obj !== null) {
-        const tbl = document.createElement('table');
-        const thead = document.createElement('thead');
-        thead.innerHTML = '<tr><th>Key</th><th>Value</th></tr>';
-        tbl.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        Object.entries(obj).forEach(([k,v]) => {
-          const tr = document.createElement('tr');
-          const kd = document.createElement('td'); kd.textContent = k;
-          const vd = document.createElement('td'); vd.textContent = String(v);
-          tr.appendChild(kd); tr.appendChild(vd);
-          tbody.appendChild(tr);
+      } else if (typeof obj==='object' && obj!==null) {
+        Object.entries(obj).forEach(([k,v])=>{
+          const tr = document.createElement('tr'),
+                tdN = document.createElement('td'),
+                tdV = document.createElement('td');
+          tdN.textContent = k;
+          tdV.textContent = (typeof v==='object')? JSON.stringify(v): String(v);
+          tr.appendChild(tdN); tr.appendChild(tdV);
+          tbodyDesc.appendChild(tr);
         });
-        tbl.appendChild(tbody);
-        detail.appendChild(tbl);
+      } else {
+        const tr = document.createElement('tr'),
+              tdN = document.createElement('td'),
+              tdV = document.createElement('td');
+        tdN.textContent = 'value';
+        tdV.textContent = String(obj);
+        tr.appendChild(tdN); tr.appendChild(tdV);
+        tbodyDesc.appendChild(tr);
       }
     }
 
-    // WebSocket
-    let ws;
-    function connect(){
-      appendLog(`Connecting to ${url}`, 'status');
-      ws = new WebSocket(url);
+    function categorize(raw) {
+      if (firstMessage) {
+        status.remove();
+        firstMessage = false;
+      }
+      let obj;
+      try { obj = JSON.parse(raw); }
+      catch {
+        setLatest(tblOther, descOther, raw);
+        return;
+      }
+      if (obj && obj.type==='welcome') {
+        setLatest(tblWelcome, descWelcome, raw);
+      } else if (obj && obj.type==='heartbeat') {
+        setLatest(tblHeartbeat, descHeartbeat, raw);
+      } else {
+        setLatest(tblOther, descOther, raw);
+      }
+    }
 
-      ws.onopen = () => appendLog('Connected','status');
-      ws.onmessage = ev => {
-        appendLog(ev.data);
-        showDetail(ev.data);
-      };
-      ws.onclose = () => {
+    function connect(){
+      appendLog(`Connecting to ${url}`,'status');
+      const ws = new WebSocket(url);
+      ws.onopen    = () => appendLog('Connected','status');
+      ws.onmessage = ev => { appendLog(ev.data); categorize(ev.data); };
+      ws.onclose   = () => {
         appendLog('Connection closed; retrying in 3s…','status');
         setTimeout(connect,3000);
       };
-      ws.onerror = err => {
-        console.error('WS error', err);
-        appendLog('WebSocket error (see console)','status');
+      ws.onerror   = err => {
+        console.error('WS error',err);
+        appendLog('WebSocket error','status');
       };
     }
     connect();
