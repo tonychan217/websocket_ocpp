@@ -13,7 +13,7 @@
   * $> python server_ocpp.py
 
 - Browser: 
-  * http//[your_raspberrypi_IP]:2406
+  * http//[your_raspberrypi_IP]:2409
 
 - Video:
   * https://www.youtube.com/watch?v=SfQd1FdcTlI
