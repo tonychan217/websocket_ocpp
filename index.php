@@ -118,7 +118,7 @@ header('Content-Type: text/html; charset=UTF-8');
   <script>
   (function(){
     const host = location.hostname;
-    const port = 2406;
+    const port = 2409;
     const url  = `ws://${host}:${port}`;
     const log  = document.getElementById('log');
     const detail = document.getElementById('detail');
