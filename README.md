@@ -15,6 +15,11 @@
   * $> sudo nano /etc/systemd/system/server_ocpp.service
   * $> sudo systemctl daemon-reload
 
+- Clean port:
+  * $> lsof -i :2409
+  * $> sudo netstat -nlp | grep :2409
+  * $> sudo fuser -k 2409/tcp
+
 - Browser: 
   * http//[your_raspberrypi_IP]:2409
 
