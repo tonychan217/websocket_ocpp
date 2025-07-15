@@ -1,85 +1,137 @@
 #!/usr/bin/env python3
 import asyncio
 import json
+import uuid
 import websockets
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 PORT = 2409
+TZ_BEIJING = timezone(timedelta(hours=8))
+_transaction_counter = 1
 
 # Keep track of all connected clients
 connected = set()
 
-def current_time():
-    """Return a formatted timestamp."""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def current_time() -> str:
+    return datetime.now(TZ_BEIJING).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 async def handler(websocket, path=None):
-    # Register new client
+    global _transaction_counter
     addr = websocket.remote_address
-    print(f"→ New connection from {addr}")
+    print(f"[{current_time()}] → Connected: {addr}")
     connected.add(websocket)
 
-    # Send a one-off welcome
-    await websocket.send(json.dumps({
-        "type":    "welcome",
-        "time":    current_time(),
-        "message": "You are now connected to OCPP Server"
-    }))
-
     try:
-        async for message in websocket:
-           
-            print(f"[{current_time()}] ► Received from {addr}: {message}")
+        async for raw in websocket:
+            ts = current_time()
+            print(f"[{ts}] ► Received from {addr}: {raw!r}")
 
-            # 1) Echo back to the sender (ESP32 expects this)
-            try:
-                await websocket.send(f"Echo: {message}")
-            except Exception:
-                pass
-
-            # 2) Broadcast the *raw* message to all other clients
+            # ── Broadcast incoming message to all other clients ──
             dead = set()
             for ws in connected:
                 if ws is websocket:
                     continue
                 try:
-                    await ws.send(message)
-                except Exception:
+                    await ws.send(raw)
+                except:
                     dead.add(ws)
-
-            # Clean up any dead connections
             for ws in dead:
-                connected.remove(ws)
+                connected.discard(ws)
+
+            # ── Parse and handle OCPP CALL frames ──
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                print("  ⚠️ invalid JSON, skipping OCPP logic")
+                continue
+
+            # OCPP CALL: [2, UniqueId, Action, Payload]
+            if (
+                isinstance(msg, list)
+                and len(msg) == 4
+                and msg[0] == 2
+            ):
+                unique_id, action, payload = msg[1], msg[2], msg[3]
+
+                # build result_payload per action
+                if action == "BootNotification":
+                    result_payload = {
+                        "currentTime": current_time(),
+                        "interval": 10,
+                        "status": "Accepted"
+                    }
+                elif action == "Heartbeat":
+                    # 1) Heartbeat CALLRESULT
+                    result_payload = {
+                        "currentTime": current_time()
+                    }
+                elif action == "StatusNotification":
+                    result_payload = {}
+                elif action == "Authorize":
+                    result_payload = {
+                        "idTagInfo": {"status": "Accepted"}
+                    }
+                elif action == "StartTransaction":
+                    txid = _transaction_counter
+                    _transaction_counter += 1
+                    result_payload = {
+                        "transactionId": txid,
+                        "idTagInfo": {"status": "Accepted"}
+                    }
+                elif action == "StopTransaction":
+                    result_payload = {
+                        "idTagInfo": {"status": "Accepted"}
+                    }
+                else:
+                    print(f"  ⚠️ Unhandled OCPP action: {action}")
+                    continue
+
+                # send the CALLRESULT back to the originator
+                resp = [3, unique_id, result_payload]
+                text = json.dumps(resp)
+                await websocket.send(text)
+                print(f"[{current_time()}] ◉ Sent {action} CALLRESULT → {text!r}")
+
+                # 2) If it was a Heartbeat, immediately send a DataTransfer CALL
+                if action == "Heartbeat":
+                    dt_call = [
+                        2,
+                        unique_id,
+                        "DataTransfer",
+                        {
+                            "vendorId": "MyVendor",
+                            "messageId": "MTD-001",
+                            "data": "payload‐string"
+                        }
+                    ]
+                    dt_text = json.dumps(dt_call)
+                    await websocket.send(dt_text)
+                    print(f"[{current_time()}] ⯈ Sent DataTransfer CALL → {dt_text!r}")
+
+                # ── Broadcast that CALLRESULT to all OTHER clients ──
+                dead = set()
+                for ws in connected:
+                    if ws is websocket:
+                        continue
+                    try:
+                        await ws.send(text)
+                    except:
+                        dead.add(ws)
+                for ws in dead:
+                    connected.discard(ws)
+
+            # end if CALL frame
 
     except websockets.exceptions.ConnectionClosed:
         pass
-    except Exception as e:
-        print(f"[{current_time()}] !!! Error: {e}")
     finally:
-        connected.remove(websocket)
-        print(f"[{current_time()}] ◀ Client disconnected — {len(connected)} remaining")
-
-
-
-async def broadcaster():
-    # Optional heartbeat so you know the server is alive
-    while True:
-        if connected:
-            beat = json.dumps({
-                "type": "heartbeat",
-                "time": current_time()
-            })
-            await asyncio.gather(*(ws.send(beat) for ws in connected))
-            print(f"[{current_time()}] ◉ Heartbeat → {len(connected)} client(s)")
-        await asyncio.sleep(5)
+        connected.discard(websocket)
+        print(f"[{current_time()}] ◀ Disconnected: {addr} -- {len(connected)} remaining")
 
 async def main():
-    # Serve with a handler that accepts (websocket, path) signature
+    print(f"[{current_time()}] Starting ws://0.0.0.0:{PORT}")
     async with websockets.serve(handler, "0.0.0.0", PORT):
-        print(f"[{current_time()}] Listening on ws://0.0.0.0:{PORT}")
-        # start background heartbeat
-        asyncio.create_task(broadcaster())
-        await asyncio.Future()  # run forever
+        await asyncio.Future()   # run forever
 
 if __name__ == "__main__":
     try:
