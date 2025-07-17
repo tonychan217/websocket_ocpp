@@ -99,9 +99,10 @@ async def handler(websocket, path=None):
                         unique_id,
                         "DataTransfer",
                         {
-                            "vendorId": "MyVendor",
-                            "messageId": "MTD-001",
-                            "data": "payload‐string"
+                            "command":"GetConverter",
+                            "payload":{
+                            "ChargerID":"CP_01"
+                            }
                         }
                     ]
                     dt_text = json.dumps(dt_call)
