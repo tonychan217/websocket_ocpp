@@ -167,7 +167,7 @@ async def handler(websocket, path=None):
     finally:
         connected.discard(websocket)
         next_dt_index.pop(websocket, None)
-        print(f"[{current_time()}]  ヽ(。>д<)ｐ Disconnected: {addr} -- {len(connected)} remaining")
+        print(f"[{current_time()}] ╭(╯^╰)╮ Disconnected: {addr} -- {len(connected)} remaining")
 
 async def main():
     print(f"[{current_time()}] Starting ws://0.0.0.0:{PORT}")
