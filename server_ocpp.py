@@ -15,10 +15,16 @@ connected = set()
 # For each websocket, track which DataTransfer command to send next
 next_dt_index = {}
 
-# The five DataTransfer commands to cycle through
+# The five DataTransfer commands to cycle through (revised payloads)
 dt_commands = [
     {
         "command": "GetConverter",
+        "payload": {
+            "ChargerID": "CP_01"
+        }
+    },
+    {
+        "command": "SetConverter",
         "payload": {
             "ChargerID": "CP_01",
             "Status": "On",
@@ -27,33 +33,22 @@ dt_commands = [
         }
     },
     {
-        "command": "SetConverter",
-        "payload": {
-            "ChargerID": "CP_01",
-            "Error": "No Error"
-        }
-    },
-    {
         "command": "SetRelay",
         "payload": {
             "ChargerID": "CP_01",
-            "Error": "No Error"
+            "Status": "On"
         }
     },
     {
         "command": "GetConnectorStatus",
         "payload": {
-            "ChargerID": "CP_01",
-            "Status": "UnplugUnlock"
+            "ChargerID": "CP_01"
         }
     },
     {
         "command": "GetEVInfo",
         "payload": {
-            "ChargerID": "CP_01",
-            "Capacity": 65000,
-            "SoC": 82,
-            "SoH": 96
+            "ChargerID": "CP_01"
         }
     }
 ]
@@ -64,7 +59,7 @@ def current_time() -> str:
 async def handler(websocket, path=None):
     global _transaction_counter
     addr = websocket.remote_address
-    print(f"[{current_time()}] → Connected: {addr}")
+    print(f"[{current_time()}] (づ｡◕‿‿◕｡)づ Connected: {addr}")
     connected.add(websocket)
 
     try:
@@ -172,7 +167,7 @@ async def handler(websocket, path=None):
     finally:
         connected.discard(websocket)
         next_dt_index.pop(websocket, None)
-        print(f"[{current_time()}] ╭(╯^╰)╮ Disconnected: {addr} -- {len(connected)} remaining")
+        print(f"[{current_time()}]  ヽ(。>д<)ｐ Disconnected: {addr} -- {len(connected)} remaining")
 
 async def main():
     print(f"[{current_time()}] Starting ws://0.0.0.0:{PORT}")
