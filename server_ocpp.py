@@ -12,6 +12,52 @@ _transaction_counter = 1
 # Keep track of all connected clients
 connected = set()
 
+# For each websocket, track which DataTransfer command to send next
+next_dt_index = {}
+
+# The five DataTransfer commands to cycle through
+dt_commands = [
+    {
+        "command": "GetConverter",
+        "payload": {
+            "ChargerID": "CP_01",
+            "Status": "On",
+            "Voltage": 450,
+            "Current": 28.6
+        }
+    },
+    {
+        "command": "SetConverter",
+        "payload": {
+            "ChargerID": "CP_01",
+            "Error": "No Error"
+        }
+    },
+    {
+        "command": "SetRelay",
+        "payload": {
+            "ChargerID": "CP_01",
+            "Error": "No Error"
+        }
+    },
+    {
+        "command": "GetConnectorStatus",
+        "payload": {
+            "ChargerID": "CP_01",
+            "Status": "UnplugUnlock"
+        }
+    },
+    {
+        "command": "GetEVInfo",
+        "payload": {
+            "ChargerID": "CP_01",
+            "Capacity": 65000,
+            "SoC": 82,
+            "SoH": 96
+        }
+    }
+]
+
 def current_time() -> str:
     return datetime.now(TZ_BEIJING).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -90,24 +136,24 @@ async def handler(websocket, path=None):
                 resp = [3, unique_id, result_payload]
                 text = json.dumps(resp)
                 await websocket.send(text)
-                print(f"[{current_time()}] ◉ Sent {action} CALLRESULT → {text!r}")
+                print(f"[{current_time()}] ✿ Sent {action} CALLRESULT → {text!r}")
 
-                # 2) If it was a Heartbeat, immediately send a DataTransfer CALL
+                # 2) If it was a Heartbeat, send exactly one DataTransfer CALL in round-robin
                 if action == "Heartbeat":
+                    idx = next_dt_index.get(websocket, 0)
+                    dt = dt_commands[idx]
                     dt_call = [
                         2,
                         unique_id,
                         "DataTransfer",
-                        {
-                            "command":"GetConverter",
-                            "payload":{
-                            "ChargerID":"CP_01"
-                            }
-                        }
+                        dt
                     ]
                     dt_text = json.dumps(dt_call)
                     await websocket.send(dt_text)
-                    print(f"[{current_time()}] ⯈ Sent DataTransfer CALL → {dt_text!r}")
+                    print(f"[{current_time()}] ♥ Sent DataTransfer → {dt_text!r}")
+
+                    # increment and wrap the index
+                    next_dt_index[websocket] = (idx + 1) % len(dt_commands)
 
                 # ── Broadcast that CALLRESULT to all OTHER clients ──
                 dead = set()
@@ -121,13 +167,12 @@ async def handler(websocket, path=None):
                 for ws in dead:
                     connected.discard(ws)
 
-            # end if CALL frame
-
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
         connected.discard(websocket)
-        print(f"[{current_time()}] ◀ Disconnected: {addr} -- {len(connected)} remaining")
+        next_dt_index.pop(websocket, None)
+        print(f"[{current_time()}] ╭(╯^╰)╮ Disconnected: {addr} -- {len(connected)} remaining")
 
 async def main():
     print(f"[{current_time()}] Starting ws://0.0.0.0:{PORT}")
