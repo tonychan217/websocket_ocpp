@@ -56,16 +56,17 @@ dt_commands = [
 def current_time() -> str:
     return datetime.now(TZ_BEIJING).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-async def handler(websocket, path=None):
+async def handler(websocket,path=None):
     global _transaction_counter
     addr = websocket.remote_address
-    print(f"[{current_time()}] (づ｡◕‿‿◕｡)づ Connected: {addr}")
+    suffix = websocket.request.path
+    print(f"[{current_time()}] (づ｡◕‿‿◕｡)づ Connected: {addr}{suffix}")
     connected.add(websocket)
 
     try:
         async for raw in websocket:
             ts = current_time()
-            print(f"[{ts}] ► Received from {addr}: {raw!r}")
+            print(f"[{ts}] ► Received from {addr}{suffix}: {raw!r}")
 
             # ── Intercept plain "start"/"stop" commands ──
             cmd = raw.strip()
@@ -150,17 +151,6 @@ async def handler(websocket, path=None):
                     result_payload = {
                         "idTagInfo": {"status": "Accepted"}
                     }
-                elif action == "StartTransaction":
-                    txid = _transaction_counter
-                    _transaction_counter += 1
-                    result_payload = {
-                        "transactionId": txid,
-                        "idTagInfo": {"status": "Accepted"}
-                    }
-                elif action == "StopTransaction":
-                    result_payload = {
-                        "idTagInfo": {"status": "Accepted"}
-                    }
                 else:
                     print(f"  ⚠️ Unhandled OCPP action: {action}")
                     continue
@@ -198,7 +188,7 @@ async def handler(websocket, path=None):
     finally:
         connected.discard(websocket)
         next_dt_index.pop(websocket, None)
-        print(f"[{current_time()}] ╭(╯^╰)╮ Disconnected: {addr} -- {len(connected)} remaining")
+        print(f"[{current_time()}] ╭(╯^╰)╮ Disconnected: {addr}{suffix} -- {len(connected)} remaining")
 
 async def main():
     print(f"[{current_time()}] Starting ws://0.0.0.0:{PORT}")
