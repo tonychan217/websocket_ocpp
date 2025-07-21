@@ -15,7 +15,7 @@ connected = set()
 # For each websocket, track which DataTransfer command to send next
 next_dt_index = {}
 
-# The five DataTransfer commands to cycle through (revised payloads)
+# The five DataTransfer commands to cycle through
 dt_commands = [
     {
         "command": "GetConverter",
@@ -67,6 +67,45 @@ async def handler(websocket, path=None):
             ts = current_time()
             print(f"[{ts}] ► Received from {addr}: {raw!r}")
 
+            # ── Intercept plain "start"/"stop" commands ──
+            cmd = raw.strip()
+            if cmd in ("start", "stop"):
+                unique_id = uuid.uuid4().hex
+                if cmd == "start":
+                    action = "RemoteStartTransaction"
+                    payload = {
+                        "connectorId": 1,
+                        "idTag": "ABC123",
+                        "chargingProfile": {
+                            "chargingProfileId": 1,
+                            "chargingSchedule": {
+                                "chargingRateUnit": "A",
+                                "chargingSchedulePeriod": [
+                                    { "limit": 32 }
+                                ]
+                            }
+                        }
+                    }
+                else:  # cmd == "stop"
+                    action = "RemoteStopTransaction"
+                    payload = {
+                        "transactionId": 1
+                    }
+                call_msg = [2, unique_id, action, payload]
+                text = json.dumps(call_msg)
+                # send to all clients
+                dead = set()
+                for ws in connected:
+                    try:
+                        await ws.send(text)
+                    except:
+                        dead.add(ws)
+                for ws in dead:
+                    connected.discard(ws)
+                print(f"[{current_time()}] ✨ Sent custom {action} CALL → {text!r}")
+                # skip all other logic for this raw message
+                continue
+
             # ── Broadcast incoming message to all other clients ──
             dead = set()
             for ws in connected:
@@ -102,7 +141,6 @@ async def handler(websocket, path=None):
                         "status": "Accepted"
                     }
                 elif action == "Heartbeat":
-                    # 1) Heartbeat CALLRESULT
                     result_payload = {
                         "currentTime": current_time()
                     }
@@ -137,17 +175,10 @@ async def handler(websocket, path=None):
                 if action == "Heartbeat":
                     idx = next_dt_index.get(websocket, 0)
                     dt = dt_commands[idx]
-                    dt_call = [
-                        2,
-                        unique_id,
-                        "DataTransfer",
-                        dt
-                    ]
+                    dt_call = [2, unique_id, "DataTransfer", dt]
                     dt_text = json.dumps(dt_call)
                     await websocket.send(dt_text)
                     print(f"[{current_time()}] ♥ Sent DataTransfer → {dt_text!r}")
-
-                    # increment and wrap the index
                     next_dt_index[websocket] = (idx + 1) % len(dt_commands)
 
                 # ── Broadcast that CALLRESULT to all OTHER clients ──
