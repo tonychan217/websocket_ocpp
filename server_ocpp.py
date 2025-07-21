@@ -159,7 +159,7 @@ async def handler(websocket,path=None):
                 resp = [3, unique_id, result_payload]
                 text = json.dumps(resp)
                 await websocket.send(text)
-                print(f"[{current_time()}] ✿ Sent {action} CALLRESULT → {text!r}")
+                print(f"[{current_time()}] ♥ Sent {action} CALLRESULT → {text!r}")
 
                 # 2) If it was a Heartbeat, send exactly one DataTransfer CALL in round-robin
                 if action == "Heartbeat":
@@ -168,7 +168,7 @@ async def handler(websocket,path=None):
                     dt_call = [2, unique_id, "DataTransfer", dt]
                     dt_text = json.dumps(dt_call)
                     await websocket.send(dt_text)
-                    print(f"[{current_time()}] ♥ Sent DataTransfer → {dt_text!r}")
+                    print(f"[{current_time()}] ✿ Sent DataTransfer → {dt_text!r}")
                     next_dt_index[websocket] = (idx + 1) % len(dt_commands)
 
                 # ── Broadcast that CALLRESULT to all OTHER clients ──
