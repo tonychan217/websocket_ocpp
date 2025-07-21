@@ -165,7 +165,7 @@ async def handler(websocket,path=None):
                 if action == "Heartbeat":
                     idx = next_dt_index.get(websocket, 0)
                     dt = dt_commands[idx]
-                    dt_call = [2, unique_id, "DataTransfer", dt]
+                    dt_call = [2, str(uuid.uuid4()), "DataTransfer", dt]
                     dt_text = json.dumps(dt_call)
                     await websocket.send(dt_text)
                     print(f"[{current_time()}] ✿ Sent DataTransfer → {dt_text!r}")
