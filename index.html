@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>OCPP Live WSS</title>
+  <title>OCPP WSS Panel</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -105,7 +105,7 @@
 </head>
 <body>
   <div class="container">
-    <div class="header">OCPP Live Data Log</div>
+    <div class="header">OCPP WSS Panel</div>
     <div class="content">
       <div id="log">
         <div class="entry status"><span class="ts">--:--:--</span>Connecting…</div>
@@ -151,7 +151,8 @@
   (function(){
     const host      = location.hostname,
           port      = 2409,
-          url       = `ws://${host}:${port}`;
+          url       = `ws://${host}:${port}/Ctr`;
+
 
     const log        = document.getElementById('log'),
           tblBoot    = document.querySelector('#boot-table tbody'),
