@@ -7,13 +7,15 @@ from datetime import datetime, timezone, timedelta
 
 PORT = 2409
 TZ_BEIJING = timezone(timedelta(hours=8))
-_transaction_counter = 1
 
 # Keep track of all connected clients
 connected = set()
 
 # For each websocket, track which DataTransfer command to send next
 next_dt_index = {}
+
+# Keep track of BootNotification unique IDs per client
+boot_unique_ids = {}
 
 # The five DataTransfer commands to cycle through
 dt_commands = [
@@ -56,8 +58,7 @@ dt_commands = [
 def current_time() -> str:
     return datetime.now(TZ_BEIJING).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-async def handler(websocket,path=None):
-    global _transaction_counter
+async def handler(websocket, path=None):
     addr = websocket.remote_address
     suffix = websocket.request.path
     print(f"[{current_time()}] (づ｡◕‿‿◕｡)づ Connected: {addr}{suffix}")
@@ -70,8 +71,8 @@ async def handler(websocket,path=None):
 
             # ── Intercept plain "start"/"stop" commands ──
             cmd = raw.strip()
-            if cmd in ("start", "stop"):
-                unique_id = uuid.uuid4().hex
+            if cmd in ("start", "stop", "get"):
+                ws_unique_id = uuid.uuid4().hex
                 if cmd == "start":
                     action = "RemoteStartTransaction"
                     payload = {
@@ -87,12 +88,19 @@ async def handler(websocket,path=None):
                             }
                         }
                     }
-                else:  # cmd == "stop"
+                elif  cmd == "stop":
                     action = "RemoteStopTransaction"
                     payload = {
                         "transactionId": 1
                     }
-                call_msg = [2, unique_id, action, payload]
+                elif  cmd == "get":
+                    action = "TriggerMessage"
+                    payload = {
+                        "requestedMessage": "MeterValues",
+                        "connectorId": 1
+                    }
+
+                call_msg = [2, ws_unique_id, action, payload]
                 text = json.dumps(call_msg)
                 # send to all clients
                 dead = set()
@@ -103,7 +111,7 @@ async def handler(websocket,path=None):
                         dead.add(ws)
                 for ws in dead:
                     connected.discard(ws)
-                print(f"[{current_time()}] ✨ Sent custom {action} CALL → {text!r}")
+                print(f"[{current_time()}] ✨ Sent {action} CALL → {text!r}")
                 # skip all other logic for this raw message
                 continue
 
@@ -119,13 +127,13 @@ async def handler(websocket,path=None):
             for ws in dead:
                 connected.discard(ws)
 
-            # ── Parse and handle OCPP CALL frames ──
+            # Parse incoming message as JSON
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
-                print("  ⚠️ invalid JSON, skipping OCPP logic")
+                print(f"[{ts}] ⚠️ Invalid JSON, skipping")
                 continue
-
+                
             # OCPP CALL: [2, UniqueId, Action, Payload]
             if (
                 isinstance(msg, list)
@@ -134,54 +142,48 @@ async def handler(websocket,path=None):
             ):
                 unique_id, action, payload = msg[1], msg[2], msg[3]
 
-                # build result_payload per action
+                try:
+                    uid = int(unique_id)
+                    prev = int(boot_unique_ids.get(websocket, 1))
+                    if uid > prev:
+                        boot_unique_ids[websocket] = uid
+                except (ValueError, TypeError):
+                    pass
+
+                # If it was a BootNotification, send "Accepted" and store unique_id
                 if action == "BootNotification":
-                    result_payload = {
+                    bn_call = [3, unique_id, {
                         "currentTime": current_time(),
                         "interval": 10,
-                        "status": "Accepted"
-                    }
-                elif action == "Heartbeat":
-                    result_payload = {
-                        "currentTime": current_time()
-                    }
-                elif action == "StatusNotification":
-                    result_payload = {}
-                elif action == "Authorize":
-                    result_payload = {
-                        "idTagInfo": {"status": "Accepted"}
-                    }
-                else:
-                    print(f"  ⚠️ Unhandled OCPP action: {action}")
-                    continue
+                        "status": "Accepted"}]
+                    bn_text = json.dumps(bn_call)
+                    await websocket.send(bn_text)
+                    print(f"[{ts}] ♥ Sent BootNotification CALL → {bn_text!r}")
 
-                # send the CALLRESULT back to the originator
-                resp = [3, unique_id, result_payload]
-                text = json.dumps(resp)
-                await websocket.send(text)
-                print(f"[{current_time()}] ♥ Sent {action} CALLRESULT → {text!r}")
+                # If it was a StatusNotification, send "Accepted" and store unique_id
+                if action == "StatusNotification":
+                    bn_call = [3, unique_id, {}]
+                    bn_text = json.dumps(bn_call)
+                    await websocket.send(bn_text)
+                    print(f"[{ts}] ♥ Sent StatusNotification CALL → {bn_text!r}")
 
-                # 2) If it was a Heartbeat, send exactly one DataTransfer CALL in round-robin
+                # Send Heartbeat after receiving clients' heartbeat
                 if action == "Heartbeat":
+                    hb_call = [3, unique_id, {"currentTime":current_time()}]
+                    hb_text = json.dumps(hb_call)
+                    await websocket.send(hb_text)
+                    print(f"[{ts}] ♥ Sent Heartbeat → {hb_text!r}")
+                    
+                # If it was a Heartbeat, send exactly one DataTransfer CALL in round-robin
+                if action == "Heartbeat":
+                    ws_unique_id = uuid.uuid4().hex
                     idx = next_dt_index.get(websocket, 0)
                     dt = dt_commands[idx]
-                    dt_call = [2, str(uuid.uuid4()), "DataTransfer", dt]
+                    dt_call = [2, ws_unique_id, "DataTransfer", dt]
                     dt_text = json.dumps(dt_call)
                     await websocket.send(dt_text)
                     print(f"[{current_time()}] ✿ Sent DataTransfer → {dt_text!r}")
                     next_dt_index[websocket] = (idx + 1) % len(dt_commands)
-
-                # ── Broadcast that CALLRESULT to all OTHER clients ──
-                dead = set()
-                for ws in connected:
-                    if ws is websocket:
-                        continue
-                    try:
-                        await ws.send(text)
-                    except:
-                        dead.add(ws)
-                for ws in dead:
-                    connected.discard(ws)
 
     except websockets.exceptions.ConnectionClosed:
         pass
@@ -193,7 +195,7 @@ async def handler(websocket,path=None):
 async def main():
     print(f"[{current_time()}] Starting ws://0.0.0.0:{PORT}")
     async with websockets.serve(handler, "0.0.0.0", PORT):
-        await asyncio.Future()   # run forever
+        await asyncio.Future()
 
 if __name__ == "__main__":
     try:
