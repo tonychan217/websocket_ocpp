@@ -86,8 +86,9 @@
       display: flex;
       justify-content: flex-end;
       margin-bottom: 1rem;
+      gap: .5rem;
     }
-    #toggleBtn {
+    #toggleBtn, #getBtn {
       background: #007bff;
       color: #fff;
       border: none;
@@ -143,146 +144,168 @@
           <thead><tr><th>Name</th><th>Value</th></tr></thead>
           <tbody></tbody>
         </table>
+          <div class="table-footer">
+          <button id="getBtn">GET</button>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-  (function(){
-    const host      = location.hostname,
-          port      = 2409,
-          url       = `ws://${host}:${port}/Ctr`;
+(function(){
+  const host      = location.hostname || "localhost",
+        port      = 2409,
+        url       = `ws://${host}:${port}/Ctr`;
 
+  const log        = document.getElementById('log'),
+        tblBoot    = document.querySelector('#boot-table tbody'),
+        descBoot   = document.querySelector('#boot-desc tbody'),
+        tblCall    = document.querySelector('#call-table tbody'),
+        descCall   = document.querySelector('#call-desc tbody'),
+        tblResult  = document.querySelector('#result-table tbody'),
+        descResult = document.querySelector('#result-desc tbody'),
+        toggleBtn  = document.getElementById('toggleBtn'),
+        getBtn     = document.getElementById('getBtn'),
+        detail     = document.getElementById('detail');
 
-    const log        = document.getElementById('log'),
-          tblBoot    = document.querySelector('#boot-table tbody'),
-          descBoot   = document.querySelector('#boot-desc tbody'),
-          tblCall    = document.querySelector('#call-table tbody'),
-          descCall   = document.querySelector('#call-desc tbody'),
-          tblResult  = document.querySelector('#result-table tbody'),
-          descResult = document.querySelector('#result-desc tbody'),
-          toggleBtn  = document.getElementById('toggleBtn');
+  let ws;
 
-    let ws;  // <-- WebSocket reference in outer scope
+  toggleBtn.addEventListener('click', () => {
+    const action = toggleBtn.textContent === 'Start' ? 'start' : 'stop';
+    toggleBtn.textContent = action === 'start' ? 'Stop' : 'Start';
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(action);
+      detail.scrollTop = detail.scrollHeight; // Force scroll to bottom
+    }
+  });
 
-    // Toggle Start/Stop on button click AND send command to server
-    toggleBtn.addEventListener('click', () => {
-      const action = toggleBtn.textContent === 'Start' ? 'start' : 'stop';
-      toggleBtn.textContent = action === 'start' ? 'Stop' : 'Start';
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(action);
+  getBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('get');
+      detail.scrollTop = detail.scrollHeight; // Force scroll to bottom
+    }
+  });
+
+  function nowTs(){
+    const d = new Date(), z = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`
+         + ` ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+  }
+
+  function appendLog(msg, cls=''){
+    const e = document.createElement('div'),
+          ts = document.createElement('span');
+    e.className = 'entry' + (cls ? ' ' + cls : '');
+    ts.className = 'ts';
+    ts.textContent = nowTs();
+    e.appendChild(ts);
+    e.appendChild(document.createTextNode(msg));
+    log.appendChild(e);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function setLatest(tbodyRaw, tbodyDesc, raw){
+    // Check if the detail div is scrolled to the bottom
+    const isScrolledToBottom = detail.scrollHeight - detail.clientHeight <= detail.scrollTop + 1;
+
+    tbodyRaw.innerHTML = '';
+    const trR  = document.createElement('tr'),
+          tdT = document.createElement('td'),
+          tdJ = document.createElement('td');
+    tdT.innerHTML = `<span class="ts">${nowTs()}</span>`;
+    tdJ.textContent = raw;
+    trR.append(tdT, tdJ);
+    tbodyRaw.appendChild(trR);
+
+    tbodyDesc.innerHTML = '';
+    let obj;
+    try { obj = JSON.parse(raw); }
+    catch {
+      const tr = document.createElement('tr'),
+            tdN = document.createElement('td'),
+            tdV = document.createElement('td');
+      tdN.textContent = 'raw'; tdV.textContent = raw;
+      tr.append(tdN, tdV);
+      tbodyDesc.appendChild(tr);
+      // Only auto-scroll if the user was at the bottom
+      if (isScrolledToBottom) {
+        detail.scrollTop = detail.scrollHeight;
       }
-    });
-
-    function nowTs(){
-      const d = new Date(), z = n => String(n).padStart(2,'0');
-      return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`
-           + ` ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+      return;
     }
-
-    function appendLog(msg, cls=''){
-      const e = document.createElement('div'),
-            ts = document.createElement('span');
-      e.className = 'entry' + (cls ? ' ' + cls : '');
-      ts.className = 'ts';
-      ts.textContent = nowTs();
-      e.appendChild(ts);
-      e.appendChild(document.createTextNode(msg));
-      log.appendChild(e);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    function setLatest(tbodyRaw, tbodyDesc, raw){
-      tbodyRaw.innerHTML = '';
-      const trR  = document.createElement('tr'),
-            tdT = document.createElement('td'),
-            tdJ = document.createElement('td');
-      tdT.innerHTML = `<span class="ts">${nowTs()}</span>`;
-      tdJ.textContent = raw;
-      trR.append(tdT, tdJ);
-      tbodyRaw.appendChild(trR);
-
-      tbodyDesc.innerHTML = '';
-      let obj;
-      try { obj = JSON.parse(raw); }
-      catch {
+    if (Array.isArray(obj)) {
+      obj.forEach((v,i)=>{
         const tr = document.createElement('tr'),
               tdN = document.createElement('td'),
               tdV = document.createElement('td');
-        tdN.textContent = 'raw'; tdV.textContent = raw;
+        tdN.textContent = `Index ${i}`;
+        tdV.textContent = typeof v==='object' ? JSON.stringify(v) : String(v);
         tr.append(tdN, tdV);
         tbodyDesc.appendChild(tr);
-        return;
-      }
-      if (Array.isArray(obj)) {
-        obj.forEach((v,i)=>{
-          const tr = document.createElement('tr'),
-                tdN = document.createElement('td'),
-                tdV = document.createElement('td');
-          tdN.textContent = `Index ${i}`;
-          tdV.textContent = typeof v==='object' ? JSON.stringify(v) : String(v);
-          tr.append(tdN, tdV);
-          tbodyDesc.appendChild(tr);
-        });
-      } else if (obj && typeof obj==='object') {
-        for (const [k,v] of Object.entries(obj)) {
-          const tr = document.createElement('tr'),
-                tdN = document.createElement('td'),
-                tdV = document.createElement('td');
-          tdN.textContent = k;
-          tdV.textContent = typeof v==='object' ? JSON.stringify(v) : String(v);
-          tr.append(tdN, tdV);
-          tbodyDesc.appendChild(tr);
-        }
-      } else {
+      });
+    } else if (obj && typeof obj==='object') {
+      for (const [k,v] of Object.entries(obj)) {
         const tr = document.createElement('tr'),
               tdN = document.createElement('td'),
               tdV = document.createElement('td');
-        tdN.textContent = 'value';
-        tdV.textContent = String(obj);
+        tdN.textContent = k;
+        tdV.textContent = typeof v==='object' ? JSON.stringify(v) : String(v);
         tr.append(tdN, tdV);
         tbodyDesc.appendChild(tr);
       }
+    } else {
+      const tr = document.createElement('tr'),
+            tdN = document.createElement('td'),
+            tdV = document.createElement('td');
+      tdN.textContent = 'value';
+      tdV.textContent = String(obj);
+      tr.append(tdN, tdV);
+      tbodyDesc.appendChild(tr);
     }
-
-    function categorize(raw){
-      let obj;
-      try { obj = JSON.parse(raw); }
-      catch { return; }
-      if (!Array.isArray(obj)) return;
-      const t0     = obj[0],
-            action = obj[2];
-      if (t0 === 2 && action === "BootNotification") {
-        setLatest(tblBoot, descBoot, raw);
-      }
-      else if (t0 === 2) {
-        setLatest(tblCall, descCall, raw);
-      }
-      else if (t0 === 3) {
-        setLatest(tblResult, descResult, raw);
-      }
+    // Only auto-scroll if the user was at the bottom
+    if (isScrolledToBottom) {
+      detail.scrollTop = detail.scrollHeight;
     }
+  }
 
-    function connect(){
-      appendLog(`Connecting to ${url}`, 'status');
-      ws = new WebSocket(url);
-      ws.onopen    = () => appendLog('Connected', 'status');
-      ws.onmessage = ev => {
-        appendLog(ev.data);
-        categorize(ev.data);
-      };
-      ws.onclose   = () => {
-        appendLog('Connection closed; retrying in 3s…', 'status');
-        setTimeout(connect, 3000);
-      };
-      ws.onerror   = err => {
-        console.error('WS error', err);
-        appendLog('WebSocket error', 'status');
-      };
+  function categorize(raw){
+    let obj;
+    try { obj = JSON.parse(raw); }
+    catch { return; }
+    if (!Array.isArray(obj)) return;
+    const t0     = obj[0],
+          action = obj[2];
+    if (t0 === 2 && action === "BootNotification") {
+      setLatest(tblBoot, descBoot, raw);
     }
+    else if (t0 === 2) {
+      setLatest(tblCall, descCall, raw);
+    }
+    else if (t0 === 3) {
+      setLatest(tblResult, descResult, raw);
+    }
+  }
 
-    connect();
-  })();
-  </script>
+  function connect(){
+    appendLog(`Connecting to ${url}`, 'status');
+    ws = new WebSocket(url);
+    ws.onopen    = () => appendLog('Connected', 'status');
+    ws.onmessage = ev => {
+      appendLog(ev.data);
+      categorize(ev.data);
+    };
+    ws.onclose   = () => {
+      appendLog('Connection closed; retrying in 3s…', 'status');
+      setTimeout(connect, 3000);
+    };
+    ws.onerror   = err => {
+      console.error('WS error', err);
+      appendLog('WebSocket error', 'status');
+    };
+  }
+
+  connect();
+})();
+</script>
 </body>
 </html>
