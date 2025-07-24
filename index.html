@@ -118,14 +118,14 @@
     .entry .ts {
       color: var(--timestamp-color);
       font-size: .85em;
-      width: 150px; /* Fixed width for timestamp column */
+      width: 150px;
       white-space: nowrap;
       flex-shrink: 0;
     }
     .entry .msg {
       flex: 1;
       overflow-wrap: break-word;
-      max-width: calc(100% - 150px); /* Ensure message fits within remaining space */
+      max-width: calc(100% - 150px);
     }
     .entry.status {
       font-style: italic;
@@ -135,6 +135,21 @@
       font-weight: bold;
       margin: 1rem 0 .5rem;
       font-size: 1.2rem;
+    }
+    .filter {
+      margin-bottom: 0.5rem;
+    }
+    .filter label {
+      margin-right: 1rem;
+      font-size: 1rem;
+    }
+    .filter select {
+      padding: 0.4rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--container-bg);
+      color: var(--text-color);
+      font-size: 0.9rem;
     }
     table {
       width: 100%;
@@ -192,8 +207,13 @@
         <div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting…</span></div>
       </div>
       <div id="detail">
-    
         <div class="subheader">Request</div>
+        <div class="filter">
+          <label for="callFilter">Filter Requests: </label>
+          <select id="callFilter">
+            <option value="all">All</option>
+          </select>
+        </div>
         <table id="call-table">
           <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
           <tbody></tbody>
@@ -205,8 +225,13 @@
         <div class="table-footer">
           <button id="toggleBtn">Start</button>
         </div>
-
         <div class="subheader">Response</div>
+        <div class="filter">
+          <label for="resultFilter">Filter Responses: </label>
+          <select id="resultFilter">
+            <option value="all">All</option>
+          </select>
+        </div>
         <table id="result-table">
           <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
           <tbody></tbody>
@@ -221,7 +246,6 @@
       </div>
     </div>
   </div>
-
   <script>
 (function(){
   const host      = location.hostname || "localhost",
@@ -238,9 +262,14 @@
         toggleBtn  = document.getElementById('toggleBtn'),
         getBtn     = document.getElementById('getBtn'),
         modeToggleBtn = document.getElementById('modeToggleBtn'),
+        callFilter = document.getElementById('callFilter'),
+        resultFilter = document.getElementById('resultFilter'),
         detail     = document.getElementById('detail');
 
   let ws;
+  let requestCommands = new Set(['all']);
+  let responseCommands = new Set(['all']);
+  let messages = { call: [], result: [] };
 
   // Dark/Light mode toggle
   modeToggleBtn.addEventListener('click', () => {
@@ -287,95 +316,139 @@
     log.scrollTop = log.scrollHeight;
   }
 
-  function setLatest(tbodyRaw, tbodyDesc, raw){
+  function updateDropdown(dropdown, commands) {
+    const selected = dropdown.value;
+    dropdown.innerHTML = '';
+    commands.forEach(cmd => {
+      const option = document.createElement('option');
+      option.value = cmd;
+      option.textContent = cmd;
+      dropdown.appendChild(option);
+    });
+    dropdown.value = commands.has(selected) ? selected : 'all';
+  }
+
+  function setLatest(tbodyRaw, tbodyDesc, raw, type) {
     const isScrolledToBottom = detail.scrollHeight - detail.clientHeight <= detail.scrollTop + 1;
+    const filter = type === 'call' ? callFilter.value : resultFilter.value;
 
-    tbodyRaw.innerHTML = '';
-    const trR  = document.createElement('tr'),
-          tdT = document.createElement('td'),
-          tdJ = document.createElement('td');
-    tdT.innerHTML = `<span class="ts">${nowTs()}</span>`;
-    tdJ.textContent = raw;
-    trR.append(tdT, tdJ);
-    tbodyRaw.appendChild(trR);
+    if (filter === 'all' || (messages[type].length > 0 && messages[type][messages[type].length - 1].command === filter)) {
+      tbodyRaw.innerHTML = '';
+      const trR = document.createElement('tr'),
+            tdT = document.createElement('td'),
+            tdJ = document.createElement('td');
+      tdT.innerHTML = `<span class="ts">${nowTs()}</span>`;
+      tdJ.textContent = raw;
+      trR.append(tdT, tdJ);
+      tbodyRaw.appendChild(trR);
 
-    tbodyDesc.innerHTML = '';
-    let obj;
-    try { obj = JSON.parse(raw); }
-    catch {
-      const tr = document.createElement('tr'),
-            tdN = document.createElement('td'),
-            tdV = document.createElement('td');
-      tdN.textContent = 'raw'; tdV.textContent = raw;
-      tr.append(tdN, tdV);
-      tbodyDesc.appendChild(tr);
+      tbodyDesc.innerHTML = '';
+      let obj;
+      try { obj = JSON.parse(raw); }
+      catch {
+        const tr = document.createElement('tr'),
+              tdN = document.createElement('td'),
+              tdV = document.createElement('td');
+        tdN.textContent = 'raw';
+        tdV.textContent = raw;
+        tr.append(tdN, tdV);
+        tbodyDesc.appendChild(tr);
+        if (isScrolledToBottom) {
+          detail.scrollTop = detail.scrollHeight;
+        }
+        return;
+      }
+      if (Array.isArray(obj)) {
+        obj.forEach((v, i) => {
+          const tr = document.createElement('tr'),
+                tdN = document.createElement('td'),
+                tdV = document.createElement('td');
+          tdN.textContent = `Index ${i}`;
+          tdV.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+          tr.append(tdN, tdV);
+          tbodyDesc.appendChild(tr);
+        });
+      } else if (obj && typeof obj === 'object') {
+        for (const [k, v] of Object.entries(obj)) {
+          const tr = document.createElement('tr'),
+                tdN = document.createElement('td'),
+                tdV = document.createElement('td');
+          tdN.textContent = k;
+          tdV.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+          tr.append(tdN, tdV);
+          tbodyDesc.appendChild(tr);
+        }
+      } else {
+        const tr = document.createElement('tr'),
+              tdN = document.createElement('td'),
+              tdV = document.createElement('td');
+        tdN.textContent = 'value';
+        tdV.textContent = String(obj);
+        tr.append(tdN, tdV);
+        tbodyDesc.appendChild(tr);
+      }
       if (isScrolledToBottom) {
         detail.scrollTop = detail.scrollHeight;
       }
-      return;
-    }
-    if (Array.isArray(obj)) {
-      obj.forEach((v,i)=>{
-        const tr = document.createElement('tr'),
-              tdN = document.createElement('td'),
-              tdV = document.createElement('td');
-        tdN.textContent = `Index ${i}`;
-        tdV.textContent = typeof v==='object' ? JSON.stringify(v) : String(v);
-        tr.append(tdN, tdV);
-        tbodyDesc.appendChild(tr);
-      });
-    } else if (obj && typeof obj==='object') {
-      for (const [k,v] of Object.entries(obj)) {
-        const tr = document.createElement('tr'),
-              tdN = document.createElement('td'),
-              tdV = document.createElement('td');
-        tdN.textContent = k;
-        tdV.textContent = typeof v==='object' ? JSON.stringify(v) : String(v);
-        tr.append(tdN, tdV);
-        tbodyDesc.appendChild(tr);
-      }
-    } else {
-      const tr = document.createElement('tr'),
-            tdN = document.createElement('td'),
-            tdV = document.createElement('td');
-      tdN.textContent = 'value';
-      tdV.textContent = String(obj);
-      tr.append(tdN, tdV);
-      tbodyDesc.appendChild(tr);
-    }
-    if (isScrolledToBottom) {
-      detail.scrollTop = detail.scrollHeight;
     }
   }
 
-  function categorize(raw){
+  function categorize(raw) {
     let obj;
     try { obj = JSON.parse(raw); }
     catch { return; }
     if (!Array.isArray(obj)) return;
-    const t0     = obj[0],
-          action = obj[2];
+    const t0 = obj[0], timestamp = nowTs();
     if (t0 === 2) {
-      setLatest(tblCall, descCall, raw);
-    }
-    else {
-      setLatest(tblResult, descResult, raw);
+      const action = obj[2];
+      requestCommands.add(action);
+      messages.call.push({ command: action, raw, timestamp });
+      updateDropdown(callFilter, requestCommands);
+      setLatest(tblCall, descCall, raw, 'call');
+    } else if (t0 === 3) {
+      const payload = obj[2];
+      if (payload && typeof payload === 'object' && 'command' in payload && payload.command) {
+        const command = payload.command;
+        responseCommands.add(command);
+        messages.result.push({ command, raw, timestamp });
+        updateDropdown(resultFilter, responseCommands);
+        setLatest(tblResult, descResult, raw, 'result');
+      } else {
+        messages.result.push({ command: null, raw, timestamp });
+        setLatest(tblResult, descResult, raw, 'result');
+      }
     }
   }
+
+  function updateTable(type) {
+    const tbodyRaw = type === 'call' ? tblCall : tblResult;
+    const tbodyDesc = type === 'call' ? descCall : descResult;
+    const filter = type === 'call' ? callFilter.value : resultFilter.value;
+    tbodyRaw.innerHTML = '';
+    tbodyDesc.innerHTML = '';
+    const filteredMessages = filter === 'all' ? messages[type] : messages[type].filter(msg => msg.command === filter);
+    if (filteredMessages.length > 0) {
+      const latest = filteredMessages[filteredMessages.length - 1];
+      setLatest(tbodyRaw, tbodyDesc, latest.raw, type);
+    }
+  }
+
+  callFilter.addEventListener('change', () => updateTable('call'));
+  resultFilter.addEventListener('change', () => updateTable('result'));
 
   function connect(){
     appendLog(`Connecting to ${url}`, 'status');
     ws = new WebSocket(url);
-    ws.onopen    = () => appendLog('Connected', 'status');
+    ws.onopen = () => appendLog('Connected', 'status');
     ws.onmessage = ev => {
       appendLog(ev.data);
       categorize(ev.data);
     };
-    ws.onclose   = () => {
+    ws.onclose = () => {
       appendLog('Connection closed; retrying in 3s…', 'status');
       setTimeout(connect, 3000);
     };
-    ws.onerror   = err => {
+    ws.onerror = err => {
       console.error('WS error', err);
       appendLog('WebSocket error', 'status');
     };
