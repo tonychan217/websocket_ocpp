@@ -6,29 +6,84 @@
   <title>OCPP WSS Panel</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg-color: #f1f3f5;
+      --container-bg: #fff;
+      --header-bg: #888;
+      --header-text: #fff;
+      --text-color: #333;
+      --border-color: #e0e0e0;
+      --detail-bg: #fafbfc;
+      --table-header-bg: #f0f0f0;
+      --button-bg: #007bff;
+      --button-text: #fff;
+      --status-color: #555;
+      --timestamp-color: #888;
+    }
+    :root.dark-mode {
+      --bg-color: #1a1a1a;
+      --container-bg: #2d2d2d;
+      --header-bg: #444;
+      --header-text: #fff;
+      --text-color: #ddd;
+      --border-color: #444;
+      --detail-bg: #252525;
+      --table-header-bg: #333;
+      --button-bg: #1e90ff;
+      --button-text: #fff;
+      --status-color: #aaa;
+      --timestamp-color: #888;
+    }
     body {
       margin: 0;
       font-family: "Segoe UI", Roboto, sans-serif;
-      background: #f1f3f5;
+      background: var(--bg-color);
       height: 100vh;
       display: flex;
+      flex-direction: column;
+      color: var(--text-color);
+    }
+    .navbar {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
+      flex-shrink: 0;
+    }
+    .navbar-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .mode-toggle {
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .mode-toggle:hover {
+      background: var(--button-bg);
+      opacity: 0.9;
     }
     .container {
-      width: 95%;
-      max-width: 1500px;
-      background: #fff;
+      width: 98%;
+      max-width: auto;
+      background: var(--container-bg);
       border-radius: 8px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.1);
       display: flex;
       flex-direction: column;
-      height: 95vh;
+      flex: 1;
       overflow: hidden;
+      margin: 1rem;
     }
     .header {
-      background: #888;
-      color: #fff;
+      background: var(--header-bg);
+      color: var(--header-text);
       text-align: center;
       padding: 1rem;
       font-size: 1.25rem;
@@ -44,24 +99,37 @@
       padding: 1rem;
       overflow-y: auto;
     }
+    #log {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
     #detail {
-      border-left: 1px solid #e0e0e0;
-      background: #fafbfc;
+      border-left: 1px solid var(--border-color);
+      background: var(--detail-bg);
     }
     .entry {
       margin-bottom: .5rem;
       font-family: monospace;
       line-height: 1.4;
-      word-wrap: break-word;
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
     }
     .entry .ts {
-      color: #888;
-      margin-right: .5rem;
+      color: var(--timestamp-color);
       font-size: .85em;
+      width: 150px; /* Fixed width for timestamp column */
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .entry .msg {
+      flex: 1;
+      overflow-wrap: break-word;
+      max-width: calc(100% - 150px); /* Ensure message fits within remaining space */
     }
     .entry.status {
       font-style: italic;
-      color: #555;
+      color: var(--status-color);
     }
     .subheader {
       font-weight: bold;
@@ -77,11 +145,15 @@
     }
     th, td {
       padding: .5rem;
-      border: 1px solid #ddd;
+      border: 1px solid var(--border-color);
       text-align: left;
       word-break: break-all;
     }
-    th { background: #f0f0f0; }
+    th { background: var(--table-header-bg); }
+    #boot-table td:first-child, #call-table td:first-child, #result-table td:first-child,
+    #boot-desc td:first-child, #call-desc td:first-child, #result-desc td:first-child {
+      white-space: nowrap;
+    }
     .table-footer {
       display: flex;
       justify-content: flex-end;
@@ -89,39 +161,38 @@
       gap: .5rem;
     }
     #toggleBtn, #getBtn {
-      background: #007bff;
-      color: #fff;
+      background: var(--button-bg);
+      color: var(--button-text);
       border: none;
       padding: .4rem .8rem;
       border-radius: 4px;
       cursor: pointer;
       font-size: 1rem;
     }
+    #toggleBtn:hover, #getBtn:hover {
+      opacity: 0.9;
+    }
     @media(max-width:700px){
       .content { flex-direction: column; }
-      #detail { border-left: none; border-top: 1px solid #e0e0e0; }
+      #detail { border-left: none; border-top: 1px solid var(--border-color); }
       .table-footer { margin-bottom: .5rem; }
+      .entry .ts { width: 120px; }
+      .entry .msg { max-width: calc(100% - 120px); }
     }
   </style>
 </head>
 <body>
+  <div class="navbar">
+    <div class="navbar-title">OCPP WSS Panel</div>
+    <button class="mode-toggle" id="modeToggleBtn">Dark Mode</button>
+  </div>
   <div class="container">
-    <div class="header">OCPP WSS Panel</div>
     <div class="content">
       <div id="log">
-        <div class="entry status"><span class="ts">--:--:--</span>Connecting…</div>
+        <div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting…</span></div>
       </div>
       <div id="detail">
-        <div class="subheader">Startup Notification</div>
-        <table id="boot-table">
-          <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <table id="boot-desc">
-          <thead><tr><th>Name</th><th>Value</th></tr></thead>
-          <tbody></tbody>
-        </table>
-
+    
         <div class="subheader">Request</div>
         <table id="call-table">
           <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
@@ -144,7 +215,7 @@
           <thead><tr><th>Name</th><th>Value</th></tr></thead>
           <tbody></tbody>
         </table>
-          <div class="table-footer">
+        <div class="table-footer">
           <button id="getBtn">GET</button>
         </div>
       </div>
@@ -166,23 +237,32 @@
         descResult = document.querySelector('#result-desc tbody'),
         toggleBtn  = document.getElementById('toggleBtn'),
         getBtn     = document.getElementById('getBtn'),
+        modeToggleBtn = document.getElementById('modeToggleBtn'),
         detail     = document.getElementById('detail');
 
   let ws;
+
+  // Dark/Light mode toggle
+  modeToggleBtn.addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark-mode');
+    modeToggleBtn.textContent = document.documentElement.classList.contains('dark-mode') 
+      ? 'Light Mode' 
+      : 'Dark Mode';
+  });
 
   toggleBtn.addEventListener('click', () => {
     const action = toggleBtn.textContent === 'Start' ? 'start' : 'stop';
     toggleBtn.textContent = action === 'start' ? 'Stop' : 'Start';
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(action);
-      detail.scrollTop = detail.scrollHeight; // Force scroll to bottom
+      detail.scrollTop = detail.scrollHeight;
     }
   });
 
   getBtn.addEventListener('click', () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send('get');
-      detail.scrollTop = detail.scrollHeight; // Force scroll to bottom
+      detail.scrollTop = detail.scrollHeight;
     }
   });
 
@@ -194,18 +274,20 @@
 
   function appendLog(msg, cls=''){
     const e = document.createElement('div'),
-          ts = document.createElement('span');
+          ts = document.createElement('span'),
+          msgSpan = document.createElement('span');
     e.className = 'entry' + (cls ? ' ' + cls : '');
     ts.className = 'ts';
     ts.textContent = nowTs();
+    msgSpan.className = 'msg';
+    msgSpan.textContent = msg;
     e.appendChild(ts);
-    e.appendChild(document.createTextNode(msg));
+    e.appendChild(msgSpan);
     log.appendChild(e);
     log.scrollTop = log.scrollHeight;
   }
 
   function setLatest(tbodyRaw, tbodyDesc, raw){
-    // Check if the detail div is scrolled to the bottom
     const isScrolledToBottom = detail.scrollHeight - detail.clientHeight <= detail.scrollTop + 1;
 
     tbodyRaw.innerHTML = '';
@@ -227,7 +309,6 @@
       tdN.textContent = 'raw'; tdV.textContent = raw;
       tr.append(tdN, tdV);
       tbodyDesc.appendChild(tr);
-      // Only auto-scroll if the user was at the bottom
       if (isScrolledToBottom) {
         detail.scrollTop = detail.scrollHeight;
       }
@@ -262,7 +343,6 @@
       tr.append(tdN, tdV);
       tbodyDesc.appendChild(tr);
     }
-    // Only auto-scroll if the user was at the bottom
     if (isScrolledToBottom) {
       detail.scrollTop = detail.scrollHeight;
     }
@@ -275,13 +355,10 @@
     if (!Array.isArray(obj)) return;
     const t0     = obj[0],
           action = obj[2];
-    if (t0 === 2 && action === "BootNotification") {
-      setLatest(tblBoot, descBoot, raw);
-    }
-    else if (t0 === 2) {
+    if (t0 === 2) {
       setLatest(tblCall, descCall, raw);
     }
-    else if (t0 === 3) {
+    else {
       setLatest(tblResult, descResult, raw);
     }
   }
