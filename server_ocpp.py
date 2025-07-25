@@ -17,44 +17,6 @@ next_dt_index = {}
 # Keep track of BootNotification unique IDs per client
 boot_unique_ids = {}
 
-# The five DataTransfer commands to cycle through
-dt_commands = [
-    {
-        "command": "GetConverter",
-        "payload": {
-            "ChargerID": "CP_01"
-        }
-    },
-    {
-        "command": "SetConverter",
-        "payload": {
-            "ChargerID": "CP_01",
-            "Status": "On",
-            "Voltage": 450,
-            "Current": 28.6
-        }
-    },
-    {
-        "command": "SetRelay",
-        "payload": {
-            "ChargerID": "CP_01",
-            "Status": "On"
-        }
-    },
-    {
-        "command": "GetConnectorStatus",
-        "payload": {
-            "ChargerID": "CP_01"
-        }
-    },
-    {
-        "command": "GetEVInfo",
-        "payload": {
-            "ChargerID": "CP_01"
-        }
-    }
-]
-
 def current_time() -> str:
     return datetime.now(TZ_BEIJING).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -100,6 +62,8 @@ async def handler(websocket, path=None):
                         "connectorId": 1
                     }
 
+
+
                 call_msg = [2, ws_unique_id, action, payload]
                 text = json.dumps(call_msg)
                 # send to all clients
@@ -111,7 +75,65 @@ async def handler(websocket, path=None):
                         dead.add(ws)
                 for ws in dead:
                     connected.discard(ws)
-                print(f"[{current_time()}] ✨ Sent {action} CALL → {text!r}")
+                print(f"[{current_time()}] ✨ Sent {call_msg[2]} CALL → {text!r}")
+                # skip all other logic for this raw message
+                continue
+
+            if cmd in ("getConverter","setConverter","setRelay","getConnectorStatus","getEVInfo"):
+                ws_unique_id = uuid.uuid4().hex
+                if  cmd == "getConverter":
+                    action = "GetConverter"
+                    payload = {
+                        "ChargerID":"CP_01"
+                    }
+
+                elif  cmd == "setConverter":
+                    action = "SetConverter"
+                    payload = {
+                        "ChargerID":"CP_01",
+                        "Status":"On",
+                        "Voltage":450,
+                        "Current":28.6
+                    }
+
+                elif  cmd == "setRelay":
+                    action = "SetRelay"
+                    payload = {
+                        "ChargerID":"CP_01",
+                        "Status":"On"
+                    }
+
+                elif  cmd == "getConnectorStatus":
+                    action = "GetConnectorStatus"
+                    payload = {
+                        "ChargerID": "CP_01"
+                    }
+
+                elif  cmd == "getEVInfo":
+                    action = "GetEVInfo"
+                    payload = {
+                        "ChargerID": "CP_01"
+                    }
+
+                call_msg = [
+                            2,
+                            ws_unique_id,"DataTransfer",
+                            {
+                            "command": action,
+                            "payload": payload
+                            }
+                        ]
+                text = json.dumps(call_msg)
+                # send to all clients
+                dead = set()
+                for ws in connected:
+                    try:
+                        await ws.send(text)
+                    except:
+                        dead.add(ws)
+                for ws in dead:
+                    connected.discard(ws)
+                print(f"[{current_time()}] ✨ Sent {call_msg[2]} CALL → {text!r}")
                 # skip all other logic for this raw message
                 continue
 
@@ -152,38 +174,59 @@ async def handler(websocket, path=None):
 
                 # If it was a BootNotification, send "Accepted" and store unique_id
                 if action == "BootNotification":
-                    bn_call = [3, unique_id, {
+                    wss_call = [3, unique_id, {
                         "currentTime": current_time(),
                         "interval": 10,
                         "status": "Accepted"}]
-                    bn_text = json.dumps(bn_call)
-                    await websocket.send(bn_text)
-                    print(f"[{ts}] ♥ Sent BootNotification CALL → {bn_text!r}")
+                    wss_text = json.dumps(wss_call)
+                    await websocket.send(wss_text)
+                    print(f"[{ts}] ♥ Sent BootNotification CALL → {wss_text!r}")
 
                 # If it was a StatusNotification, send "Accepted" and store unique_id
                 if action == "StatusNotification":
-                    bn_call = [3, unique_id, {}]
-                    bn_text = json.dumps(bn_call)
-                    await websocket.send(bn_text)
-                    print(f"[{ts}] ♥ Sent StatusNotification CALL → {bn_text!r}")
+                    wss_call = [3, unique_id, {}]
+                    wss_text = json.dumps(wss_call)
+                    await websocket.send(wss_text)
+                    print(f"[{ts}] ♥ Sent StatusNotification RES → {wss_text!r}")
 
                 # Send Heartbeat after receiving clients' heartbeat
                 if action == "Heartbeat":
-                    hb_call = [3, unique_id, {"currentTime":current_time()}]
-                    hb_text = json.dumps(hb_call)
-                    await websocket.send(hb_text)
-                    print(f"[{ts}] ♥ Sent Heartbeat → {hb_text!r}")
+                    wss_call = [3, unique_id, {"currentTime":current_time()}]
+                    wss_text = json.dumps(wss_call)
+                    await websocket.send(wss_text)
+                    print(f"[{ts}] ♥ Sent Heartbeat RES → {wss_text!r}")
+
+                # If it was a StartTransaction, send "Accepted" and store unique_id
+                if action == "StartTransaction":
+                    wss_call = [3, unique_id, {
+                        "transactionId": 1,
+                        "idTagInfo":{
+                            "status":"Accepted"
+                        }
+                    }]
+                    wss_text = json.dumps(wss_call)
+                    await websocket.send(wss_text)
+                    print(f"[{ts}] ♥ Sent StartTransaction RES → {wss_text!r}")
+
+                # If it was a StopTransaction, send "Accepted" and store unique_id
+                if action == "StopTransaction":
+                    wss_call = [3, unique_id, {
+                        "transactionId": 1,
+                        "idTagInfo":{
+                            "status":"Accepted"
+                        }
+                    }]
+                    wss_text = json.dumps(wss_call)
+                    await websocket.send(wss_text)
+                    print(f"[{ts}] ♥ Sent StopTransaction RES → {wss_text!r}")
+
+                # If it was a MeterValues, send "Accepted" and store unique_id
+                if action == "MeterValues":
+                    wss_call = [3, unique_id, {}]
+                    wss_text = json.dumps(wss_call)
+                    await websocket.send(wss_text)
+                    print(f"[{ts}] ♥ Sent MeterValues RES → {wss_text!r}")
                     
-                # If it was a Heartbeat, send exactly one DataTransfer CALL in round-robin
-                if action == "Heartbeat":
-                    ws_unique_id = uuid.uuid4().hex
-                    idx = next_dt_index.get(websocket, 0)
-                    dt = dt_commands[idx]
-                    dt_call = [2, ws_unique_id, "DataTransfer", dt]
-                    dt_text = json.dumps(dt_call)
-                    await websocket.send(dt_text)
-                    print(f"[{current_time()}] ✿ Sent DataTransfer → {dt_text!r}")
-                    next_dt_index[websocket] = (idx + 1) % len(dt_commands)
 
     except websockets.exceptions.ConnectionClosed:
         pass
