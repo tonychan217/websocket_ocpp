@@ -81,14 +81,6 @@
       overflow: hidden;
       margin: 1rem;
     }
-    .header {
-      background: var(--header-bg);
-      color: var(--header-text);
-      text-align: center;
-      padding: 1rem;
-      font-size: 1.25rem;
-      flex-shrink: 0;
-    }
     .content {
       flex: 1;
       display: flex;
@@ -98,6 +90,26 @@
       flex: 1;
       padding: 1rem;
       overflow-y: auto;
+      scrollbar-width: none; /* Hide scrollbar for Firefox */
+      -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+    }
+    #log::-webkit-scrollbar, #detail::-webkit-scrollbar {
+      display: none; /* Hide scrollbar for WebKit browsers */
+    }
+    #log:hover, #detail:hover {
+      scrollbar-width: thin; /* Show thin scrollbar for Firefox on hover */
+      -ms-overflow-style: auto; /* Show scrollbar for IE/Edge on hover */
+    }
+    #log:hover::-webkit-scrollbar, #detail:hover::-webkit-scrollbar {
+      display: block; /* Show scrollbar for WebKit browsers on hover */
+      width: 8px;
+    }
+    #log:hover::-webkit-scrollbar-track, #detail:hover::-webkit-scrollbar-track {
+      background: var(--border-color);
+    }
+    #log:hover::-webkit-scrollbar-thumb, #detail:hover::-webkit-scrollbar-thumb {
+      background: var(--header-bg);
+      border-radius: 4px;
     }
     #log {
       overflow-x: hidden;
@@ -165,14 +177,21 @@
       word-break: break-all;
     }
     th { background: var(--table-header-bg); }
-    #boot-table td:first-child, #call-table td:first-child, #result-table td:first-child,
-    #boot-desc td:first-child, #call-desc td:first-child, #result-desc td:first-child {
+    #call-table td:first-child, #result-table td:first-child,
+    #call-desc td:first-child, #result-desc td:first-child {
       white-space: nowrap;
     }
     .table-footer {
       display: flex;
-      justify-content: flex-end;
+      align-items: center;
       margin-bottom: 1rem;
+      gap: .5rem;
+    }
+    .table-footer.response-footer {
+      justify-content: flex-end;
+    }
+    .button-group {
+      display: flex;
       gap: .5rem;
     }
     #toggleBtn, #getBtn {
@@ -184,8 +203,30 @@
       cursor: pointer;
       font-size: 1rem;
     }
+    #getConverterBtn, #setConverterBtn, #setRelayBtn, #getConnectorStatusBtn, #getEVInfoBtn {
+      background: var(--table-header-bg);
+      color: #000;
+      border: none;
+      padding: .4rem .8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    :root.dark-mode #getConverterBtn,
+    :root.dark-mode #setConverterBtn,
+    :root.dark-mode #setRelayBtn,
+    :root.dark-mode #getConnectorStatusBtn,
+    :root.dark-mode #getEVInfoBtn {
+      color: #fff;
+    }
     #toggleBtn:hover, #getBtn:hover {
       opacity: 0.9;
+    }
+    #getConverterBtn:hover, #setConverterBtn:hover, #setRelayBtn:hover, #getConnectorStatusBtn:hover, #getEVInfoBtn:hover {
+      background: #c0c0c0;
+    }
+    #toggleBtn {
+      margin-left: auto;
     }
     @media(max-width:700px){
       .content { flex-direction: column; }
@@ -223,6 +264,13 @@
           <tbody></tbody>
         </table>
         <div class="table-footer">
+          <div class="button-group">
+            <button id="getConverterBtn">GetConverter</button>
+            <button id="setConverterBtn">SetConverter</button>
+            <button id="setRelayBtn">SetRelay</button>
+            <button id="getConnectorStatusBtn">GetConnectorStatus</button>
+            <button id="getEVInfoBtn">GetEVInfo</button>
+          </div>
           <button id="toggleBtn">Start</button>
         </div>
         <div class="subheader">Response</div>
@@ -240,31 +288,34 @@
           <thead><tr><th>Name</th><th>Value</th></tr></thead>
           <tbody></tbody>
         </table>
-        <div class="table-footer">
-          <button id="getBtn">GET</button>
+        <div class="table-footer response-footer">
+          <button id="getBtn">Get</button>
         </div>
       </div>
     </div>
   </div>
   <script>
 (function(){
-  const host      = location.hostname || "localhost",
-        port      = 2409,
-        url       = `ws://${host}:${port}/Ctr`;
+  const host = location.hostname || "localhost",
+        port = 2409,
+        url = `ws://${host}:${port}/Ctr`;
 
-  const log        = document.getElementById('log'),
-        tblBoot    = document.querySelector('#boot-table tbody'),
-        descBoot   = document.querySelector('#boot-desc tbody'),
-        tblCall    = document.querySelector('#call-table tbody'),
-        descCall   = document.querySelector('#call-desc tbody'),
-        tblResult  = document.querySelector('#result-table tbody'),
+  const log = document.getElementById('log'),
+        tblCall = document.querySelector('#call-table tbody'),
+        descCall = document.querySelector('#call-desc tbody'),
+        tblResult = document.querySelector('#result-table tbody'),
         descResult = document.querySelector('#result-desc tbody'),
-        toggleBtn  = document.getElementById('toggleBtn'),
-        getBtn     = document.getElementById('getBtn'),
+        toggleBtn = document.getElementById('toggleBtn'),
+        getBtn = document.getElementById('getBtn'),
+        getConverterBtn = document.getElementById('getConverterBtn'),
+        setConverterBtn = document.getElementById('setConverterBtn'),
+        setRelayBtn = document.getElementById('setRelayBtn'),
+        getConnectorStatusBtn = document.getElementById('getConnectorStatusBtn'),
+        getEVInfoBtn = document.getElementById('getEVInfoBtn'),
         modeToggleBtn = document.getElementById('modeToggleBtn'),
         callFilter = document.getElementById('callFilter'),
         resultFilter = document.getElementById('resultFilter'),
-        detail     = document.getElementById('detail');
+        detail = document.getElementById('detail');
 
   let ws;
   let requestCommands = new Set(['all']);
@@ -291,6 +342,41 @@
   getBtn.addEventListener('click', () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send('get');
+      detail.scrollTop = detail.scrollHeight;
+    }
+  });
+
+  getConverterBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('getConverter');
+      detail.scrollTop = detail.scrollHeight;
+    }
+  });
+
+  setConverterBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('setConverter');
+      detail.scrollTop = detail.scrollHeight;
+    }
+  });
+
+  setRelayBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('setRelay');
+      detail.scrollTop = detail.scrollHeight;
+    }
+  });
+
+  getConnectorStatusBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('getConnectorStatus');
+      detail.scrollTop = detail.scrollHeight;
+    }
+  });
+
+  getEVInfoBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send('getEVInfo');
       detail.scrollTop = detail.scrollHeight;
     }
   });
@@ -399,7 +485,7 @@
     catch { return; }
     if (!Array.isArray(obj)) return;
     const t0 = obj[0], timestamp = nowTs();
-    if (t0 === 2) {
+    if (t0 === 2 ) {
       const action = obj[2];
       requestCommands.add(action);
       messages.call.push({ command: action, raw, timestamp });
