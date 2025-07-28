@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="light-mode">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -19,6 +19,9 @@
       --button-text: #fff;
       --status-color: #555;
       --timestamp-color: #888;
+      --toggle-bg: #fff;
+      --toggle-border: #ccc;
+      --toggle-shadow: rgba(0,0,0,0.1);
     }
     :root.dark-mode {
       --bg-color: #1a1a1a;
@@ -33,15 +36,18 @@
       --button-text: #fff;
       --status-color: #aaa;
       --timestamp-color: #888;
+      --toggle-bg: #333;
+      --toggle-border: #555;
+      --toggle-shadow: rgba(0,0,0,0.3);
     }
     body {
       margin: 0;
       font-family: "Segoe UI", Roboto, sans-serif;
       background: var(--bg-color);
+      color: var(--text-color);
       height: 100vh;
       display: flex;
       flex-direction: column;
-      color: var(--text-color);
     }
     .navbar {
       background: var(--header-bg);
@@ -50,7 +56,6 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-shrink: 0;
     }
     .navbar-title {
       font-size: 1.5rem;
@@ -61,7 +66,7 @@
       gap: 0.5rem;
       align-items: center;
     }
-    .suffix-btn, .back-btn {
+    .suffix-btn {
       background: var(--button-bg);
       color: var(--button-text);
       border: none;
@@ -70,42 +75,58 @@
       cursor: pointer;
       font-size: 1rem;
     }
-    .suffix-btn:hover, .back-btn:hover {
-      opacity: 0.9;
-    }
-    .mode-toggle {
-      background: transparent;
-      color: var(--header-text);
-      border: none;
-      padding: 0.5rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .mode-toggle:hover {
-      background: transparent;
-    }
-    .mode-toggle .icon {
-      width: 1.2em;
-      height: 1.2em;
-      fill: currentColor;
-      vertical-align: middle;
-    }
-    .mode-toggle .sun,
-    :root.dark-mode .mode-toggle .moon {
-      display: none;
-    }
-    .mode-toggle .moon,
-    :root.dark-mode .mode-toggle .sun {
-      display: inline-block;
-    }
     .suffix-btn.active {
       background: #0056b3;
       font-weight: bold;
     }
+    /* Beautiful theme toggle */
+    .mode-toggle {
+      margin-left: 1rem;              /* extra space from CP_03 */
+      width: 2.5rem;
+      height: 2.5rem;
+      background: var(--toggle-bg);
+      border: 2px solid var(--toggle-border);
+      border-radius: 50%;
+      box-shadow: 0 2px 6px var(--toggle-shadow);
+      cursor: pointer;
+      position: relative;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .3s ease, border-color .3s ease, box-shadow .3s ease;
+    }
+    .mode-toggle:hover {
+      box-shadow: 0 4px 12px var(--toggle-shadow);
+    }
+    .mode-toggle .icon {
+      position: absolute;
+      width: 1.4rem;
+      height: 1.4rem;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      transition: transform .5s ease, opacity .5s ease;
+    }
+    .mode-toggle .moon {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+      color: #f1c40f;
+    }
+    .mode-toggle .sun {
+      transform: scale(0) rotate(90deg);
+      opacity: 0;
+      color: #f39c12;
+    }
+    :root.dark-mode .mode-toggle .moon {
+      transform: scale(0) rotate(-90deg);
+      opacity: 0;
+    }
+    :root.dark-mode .mode-toggle .sun {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+    /* Container & panels */
     .container {
       width: 98%;
       background: var(--container-bg);
@@ -129,155 +150,103 @@
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
-    #log::-webkit-scrollbar, #detail::-webkit-scrollbar {
-      display: none;
-    }
-    #log:hover, #detail:hover {
-      scrollbar-width: thin;
-      -ms-overflow-style: auto;
-    }
+    #log::-webkit-scrollbar, #detail::-webkit-scrollbar { display: none; }
+    #log:hover, #detail:hover { scrollbar-width: thin; -ms-overflow-style: auto; }
     #log:hover::-webkit-scrollbar, #detail:hover::-webkit-scrollbar {
-      display: block;
-      width: 8px;
+      display: block; width:8px;
     }
     #log:hover::-webkit-scrollbar-track, #detail:hover::-webkit-scrollbar-track {
       background: var(--border-color);
     }
     #log:hover::-webkit-scrollbar-thumb, #detail:hover::-webkit-scrollbar-thumb {
-      background: var(--header-bg);
-      border-radius: 4px;
+      background: var(--header-bg); border-radius:4px;
     }
-    #log {
-      overflow-x: hidden;
-      max-width: 100%;
-    }
-    #detail {
-      border-left: 1px solid var(--border-color);
-      background: var(--detail-bg);
-    }
+    #log { overflow-x: hidden; }
+    #detail { border-left:1px solid var(--border-color); background:var(--detail-bg); }
     .entry {
       margin-bottom: .5rem;
       font-family: monospace;
       line-height: 1.4;
-      display: flex;
-      align-items: flex-start;
-      width: 100%;
+      display:flex; align-items:flex-start; width:100%;
     }
     .entry .ts {
       color: var(--timestamp-color);
       font-size: .85em;
-      width: 150px;
-      white-space: nowrap;
-      flex-shrink: 0;
+      width:150px; flex-shrink:0; white-space:nowrap;
     }
     .entry .msg {
-      flex: 1;
-      overflow-wrap: break-word;
-      max-width: calc(100% - 150px);
+      flex:1; overflow-wrap:break-word; max-width:calc(100% - 150px);
     }
     .entry.status {
-      font-style: italic;
-      color: var(--status-color);
+      font-style:italic; color:var(--status-color);
     }
     .subheader {
-      font-weight: bold;
-      margin: 1rem 0 .5rem;
-      font-size: 1.2rem;
+      font-weight:bold; margin:1rem 0 .5rem; font-size:1.2rem;
     }
     .filter {
-      margin-bottom: 0.5rem;
+      margin-bottom:.5rem;
     }
     .filter label {
-      margin-right: 1rem;
-      font-size: 1rem;
+      margin-right:1rem; font-size:1rem;
     }
     .filter select {
-      padding: 0.4rem;
-      border-radius: 4px;
-      border: 1px solid var(--border-color);
-      background: var(--container-bg);
-      color: var(--text-color);
-      font-size: 0.9rem;
+      padding:.4rem; border-radius:4px; border:1px solid var(--border-color);
+      background:var(--container-bg); color:var(--text-color); font-size:.9rem;
     }
     table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: .5rem 0;
-      font-family: monospace;
-      font-size: .9rem;
+      width:100%; border-collapse:collapse; margin:.5rem 0;
+      font-family:monospace; font-size:.9rem;
     }
     th, td {
-      padding: .5rem;
-      border: 1px solid var(--border-color);
-      text-align: left;
-      word-break: break-all;
+      padding:.5rem; border:1px solid var(--border-color);
+      text-align:left; word-break:break-all;
     }
-    th { background: var(--table-header-bg); }
+    th { background:var(--table-header-bg); }
     #call-table td:first-child, #result-table td:first-child,
     #call-desc td:first-child, #result-desc td:first-child {
-      white-space: nowrap;
+      white-space:nowrap;
     }
     .table-footer {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1rem;
-      gap: .5rem;
+      display:flex; align-items:center; margin-bottom:1rem; gap:.5rem;
     }
-    .table-footer.response-footer {
-      justify-content: flex-end;
-    }
-    .button-group {
-      display: flex;
-      gap: .5rem;
-    }
+    .table-footer.response-footer { justify-content:flex-end; }
+    .button-group { display:flex; gap:.5rem; }
     #toggleBtn, #getBtn {
-      background: var(--button-bg);
-      color: var(--button-text);
-      border: none;
-      padding: .4rem .8rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 1rem;
+      background:var(--button-bg); color:var(--button-text);
+      border:none; padding:.4rem .8rem; border-radius:4px;
+      cursor:pointer; font-size:1rem;
     }
-    #getConverterBtn,
-    #setConverterBtn,
-    #setRelayBtn,
-    #getConnectorStatusBtn,
-    #getEVInfoBtn {
-      background: var(--table-header-bg);
-      color: #000;
-      border: 1px solid var(--border-color);
-      padding: .4rem .8rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 1rem;
+    #getConverterBtn, #setConverterBtn, #setRelayBtn,
+    #getConnectorStatusBtn, #getEVInfoBtn {
+      background:var(--table-header-bg); color:#000;
+      border:1px solid var(--border-color);
+      padding:.4rem .8rem; border-radius:4px; cursor:pointer; font-size:1rem;
     }
     :root.dark-mode #getConverterBtn,
     :root.dark-mode #setConverterBtn,
     :root.dark-mode #setRelayBtn,
     :root.dark-mode #getConnectorStatusBtn,
     :root.dark-mode #getEVInfoBtn {
-      color: #fff;
+      color:#fff;
     }
-    #toggleBtn:hover, #getBtn:hover {
-      opacity: 0.9;
+    #toggleBtn:hover, #getBtn:hover,
+    .suffix-btn:hover {
+      background:#3ca3f7;
     }
-    #getConverterBtn:hover,
-    #setConverterBtn:hover,
-    #setRelayBtn:hover,
-    #getConnectorStatusBtn:hover,
+    .suffix-btn.active:hover {
+      background: #0056b3;
+    }
+    #getConverterBtn:hover, #setConverterBtn:hover,
+    #setRelayBtn:hover, #getConnectorStatusBtn:hover,
     #getEVInfoBtn:hover {
-      background: #c0c0c0;
+      background:#c0c0c0;
     }
-    #toggleBtn {
-      margin-left: auto;
-    }
+    #toggleBtn { margin-left:auto; }
     @media(max-width:700px){
-      .content { flex-direction: column; }
-      #detail { border-left: none; border-top: 1px solid var(--border-color); }
-      .table-footer { margin-bottom: .5rem; }
-      .entry .ts { width: 120px; }
-      .entry .msg { max-width: calc(100% - 120px); }
+      .content { flex-direction:column; }
+      #detail { border-left:none; border-top:1px solid var(--border-color); }
+      .entry .ts { width:120px; }
+      .entry .msg { max-width:calc(100% - 120px); }
     }
   </style>
 </head>
@@ -290,17 +259,17 @@
       <button class="suffix-btn" id="cp01Btn" onclick="switchCP('CP_01')">CP_01</button>
       <button class="suffix-btn" id="cp02Btn" onclick="switchCP('CP_02')">CP_02</button>
       <button class="suffix-btn" id="cp03Btn" onclick="switchCP('CP_03')">CP_03</button>
-      <button class="mode-toggle" id="modeToggleBtn" title="Switch to Light Mode">
+      <button class="mode-toggle" id="modeToggleBtn" title="Switch to Dark Mode">
         <svg class="icon moon" viewBox="0 0 24 24">
-          <path d="M9.37 5.51A7 7 0 0 0 14 19a7 7 0 0 0 7-7 7 7 0 0 0-7.51-7.37 8 8 0 1 1-4.12-4.12z"/>
+          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
         </svg>
         <svg class="icon sun" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="5"/>
-          <path d="M6.76 4.84l-1.8-1.79-1.42 1.42 1.79 1.8 1.43-1.43zM18 11h3v2h-3v-2zm-6 6v3h2v-3h-2zM4.22 19.78l1.79 1.8 1.42-1.42-1.8-1.79-1.41 1.41zM1 13h3v-2H1v2zM10 1h4v3h-4V1zM19.78 4.22l-1.8 1.79 1.42 1.42 1.79-1.8-1.41-1.41zM6.76 19.16l1.43-1.43-1.79-1.8-1.42 1.42 1.78 1.81zM22 13h-3v-2h3v2z"/>
+          <path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M6.34 6.34L4.93 4.93m12.02 0l-1.42 1.42M6.34 17.66l-1.42 1.42M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
         </svg>
       </button>
     </div>
   </div>
+
   <div class="container">
     <div class="content">
       <div id="log">
@@ -309,7 +278,7 @@
       <div id="detail">
         <div class="subheader">Request</div>
         <div class="filter">
-          <label for="callFilter">Filter Requests: </label>
+          <label for="callFilter">Filter Requests:</label>
           <select id="callFilter"><option value="all">All</option></select>
         </div>
         <table id="call-table">
@@ -332,7 +301,7 @@
         </div>
         <div class="subheader">Response</div>
         <div class="filter">
-          <label for="resultFilter">Filter Responses: </label>
+          <label for="resultFilter">Filter Responses:</label>
           <select id="resultFilter"><option value="all">All</option></select>
         </div>
         <table id="result-table">
@@ -349,6 +318,7 @@
       </div>
     </div>
   </div>
+
   <script>
   (function(){
     const host = location.hostname || "localhost", port = 2409;
