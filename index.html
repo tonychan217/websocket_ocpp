@@ -22,6 +22,10 @@
       --toggle-bg: #fff;
       --toggle-border: #ccc;
       --toggle-shadow: rgba(0,0,0,0.1);
+      --modal-bg: #fff;
+      --modal-border: #e0e0e0;
+      --input-bg: #f9f9f9;
+      --input-border: #ccc;
     }
     :root.dark-mode {
       --bg-color: #1a1a1a;
@@ -39,6 +43,10 @@
       --toggle-bg: #333;
       --toggle-border: #555;
       --toggle-shadow: rgba(0,0,0,0.3);
+      --modal-bg: #2d2d2d;
+      --modal-border: #444;
+      --input-bg: #333;
+      --input-border: #555;
     }
     body {
       margin: 0;
@@ -79,9 +87,8 @@
       background: #0056b3;
       font-weight: bold;
     }
-    /* Beautiful theme toggle */
     .mode-toggle {
-      margin-left: 1rem;              /* extra space from CP_03 */
+      margin-left: 1rem;
       width: 2.5rem;
       height: 2.5rem;
       background: var(--toggle-bg);
@@ -126,7 +133,6 @@
       transform: scale(1) rotate(0deg);
       opacity: 1;
     }
-    /* Container & panels */
     .container {
       width: 98%;
       background: var(--container-bg);
@@ -242,11 +248,80 @@
       background:#c0c0c0;
     }
     #toggleBtn { margin-left:auto; }
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--modal-bg);
+      border: 1px solid var(--modal-border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    .modal-body {
+      margin-bottom: 1rem;
+    }
+    .modal-body label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+    .modal-body input, .modal-body select {
+      width: 100%;
+      padding: 0.4rem;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      background: var(--input-bg);
+      color: var(--text-color);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+    .modal-btn {
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      padding: 0.4rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .modal-btn.cancel {
+      background: #6c757d;
+    }
+    .modal-btn:hover {
+      background: #3ca3f7;
+    }
+    .modal-btn.cancel:hover {
+      background: #5a6268;
+    }
     @media(max-width:700px){
       .content { flex-direction:column; }
       #detail { border-left:none; border-top:1px solid var(--border-color); }
       .entry .ts { width:120px; }
       .entry .msg { max-width:calc(100% - 120px); }
+      .modal-content { width: 95%; }
     }
   </style>
 </head>
@@ -319,6 +394,18 @@
     </div>
   </div>
 
+  <!-- Modal for SetConverter and SetRelay -->
+  <div class="modal" id="commandModal">
+    <div class="modal-content">
+      <div class="modal-header" id="modalTitle"></div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="modal-btn cancel" id="modalCancel">Cancel</button>
+        <button class="modal-btn" id="modalSubmit">Submit</button>
+      </div>
+    </div>
+  </div>
+
   <script>
   (function(){
     const host = location.hostname || "localhost", port = 2409;
@@ -342,7 +429,12 @@
           cp01Btn       = document.getElementById('cp01Btn'),
           cp02Btn       = document.getElementById('cp02Btn'),
           cp03Btn       = document.getElementById('cp03Btn'),
-          currentCPSpan = document.getElementById('currentCP');
+          currentCPSpan = document.getElementById('currentCP'),
+          modal         = document.getElementById('commandModal'),
+          modalTitle    = document.getElementById('modalTitle'),
+          modalBody     = document.getElementById('modalBody'),
+          modalCancel   = document.getElementById('modalCancel'),
+          modalSubmit   = document.getElementById('modalSubmit');
 
     let requestCommands  = new Set(['all']),
         responseCommands = new Set(['all']),
@@ -392,10 +484,67 @@
     });
     getBtn.addEventListener('click', ()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('get'); detail.scrollTop=detail.scrollHeight; } });
     getConverterBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getConverter'); detail.scrollTop=detail.scrollHeight; } });
-    setConverterBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('setConverter'); detail.scrollTop=detail.scrollHeight; } });
-    setRelayBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('setRelay'); detail.scrollTop=detail.scrollHeight; } });
     getConnectorStatusBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getConnectorStatus'); detail.scrollTop=detail.scrollHeight; } });
     getEVInfoBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getEVInfo'); detail.scrollTop=detail.scrollHeight; } });
+
+    // Modal handling
+    function showModal(command) {
+      modalTitle.textContent = command === 'setConverter' ? 'Set Converter' : 'Set Relay';
+      modalBody.innerHTML = '';
+      if (command === 'setConverter') {
+        modalBody.innerHTML = `
+          <label for="converterStatus">Status:</label>
+          <select id="converterStatus">
+            <option value="On">On</option>
+            <option value="Off">Off</option>
+          </select>
+          <label for="voltage">Voltage (V):</label>
+          <input type="number" id="voltage" value="450" min="0" step="1">
+          <label for="current">Current (A):</label>
+          <input type="number" id="current" value="28" min="0" step="1">
+        `;
+      } else {
+        modalBody.innerHTML = `
+          <label for="relayStatus">Status:</label>
+          <select id="relayStatus">
+            <option value="On">On</option>
+            <option value="Off">Off</option>
+          </select>
+        `;
+      }
+      modal.style.display = 'flex';
+      modalSubmit.onclick = () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          let payload = { ChargerID: currentCP };
+          if (command === 'setConverter') {
+            payload.Status = document.getElementById('converterStatus').value;
+            payload.Voltage = parseInt(document.getElementById('voltage').value);
+            payload.Current = parseInt(document.getElementById('current').value);
+          } else {
+            payload.Status = document.getElementById('relayStatus').value;
+          }
+          const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+            (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+          );
+          const message = [
+            2,
+            uniqueId,
+            "DataTransfer",
+            {
+              command: command === 'setConverter' ? 'SetConverter' : 'SetRelay',
+              payload: payload
+            }
+          ];
+          ws.send(JSON.stringify(message));
+          detail.scrollTop = detail.scrollHeight;
+        }
+        modal.style.display = 'none';
+      };
+      modalCancel.onclick = () => { modal.style.display = 'none'; };
+    }
+
+    setConverterBtn.addEventListener('click', () => { showModal('setConverter'); });
+    setRelayBtn.addEventListener('click', () => { showModal('setRelay'); });
 
     function nowTs(){
       const d=new Date(), z=n=>String(n).padStart(2,'0');
