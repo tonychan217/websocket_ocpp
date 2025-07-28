@@ -97,7 +97,7 @@ async def handler(websocket, path=None):  # Remove default path
                         "ChargerID": actual_path.lstrip('/'),
                         "Status": "On",
                         "Voltage": 450,
-                        "Current": 28.6
+                        "Current": 28
                     }
                 elif cmd == "setRelay":
                     action = "SetRelay"
