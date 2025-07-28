@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light-mode">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -56,7 +56,12 @@
       font-size: 1.5rem;
       font-weight: bold;
     }
-    .mode-toggle {
+    .navbar-buttons {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .suffix-btn, .back-btn {
       background: var(--button-bg);
       color: var(--button-text);
       border: none;
@@ -65,13 +70,44 @@
       cursor: pointer;
       font-size: 1rem;
     }
-    .mode-toggle:hover {
-      background: var(--button-bg);
+    .suffix-btn:hover, .back-btn:hover {
       opacity: 0.9;
+    }
+    .mode-toggle {
+      background: transparent;
+      color: var(--header-text);
+      border: none;
+      padding: 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mode-toggle:hover {
+      background: transparent;
+    }
+    .mode-toggle .icon {
+      width: 1.2em;
+      height: 1.2em;
+      fill: currentColor;
+      vertical-align: middle;
+    }
+    .mode-toggle .sun,
+    :root.dark-mode .mode-toggle .moon {
+      display: none;
+    }
+    .mode-toggle .moon,
+    :root.dark-mode .mode-toggle .sun {
+      display: inline-block;
+    }
+    .suffix-btn.active {
+      background: #0056b3;
+      font-weight: bold;
     }
     .container {
       width: 98%;
-      max-width: auto;
       background: var(--container-bg);
       border-radius: 8px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.1);
@@ -90,18 +126,18 @@
       flex: 1;
       padding: 1rem;
       overflow-y: auto;
-      scrollbar-width: none; /* Hide scrollbar for Firefox */
-      -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
     #log::-webkit-scrollbar, #detail::-webkit-scrollbar {
-      display: none; /* Hide scrollbar for WebKit browsers */
+      display: none;
     }
     #log:hover, #detail:hover {
-      scrollbar-width: thin; /* Show thin scrollbar for Firefox on hover */
-      -ms-overflow-style: auto; /* Show scrollbar for IE/Edge on hover */
+      scrollbar-width: thin;
+      -ms-overflow-style: auto;
     }
     #log:hover::-webkit-scrollbar, #detail:hover::-webkit-scrollbar {
-      display: block; /* Show scrollbar for WebKit browsers on hover */
+      display: block;
       width: 8px;
     }
     #log:hover::-webkit-scrollbar-track, #detail:hover::-webkit-scrollbar-track {
@@ -203,10 +239,14 @@
       cursor: pointer;
       font-size: 1rem;
     }
-    #getConverterBtn, #setConverterBtn, #setRelayBtn, #getConnectorStatusBtn, #getEVInfoBtn {
+    #getConverterBtn,
+    #setConverterBtn,
+    #setRelayBtn,
+    #getConnectorStatusBtn,
+    #getEVInfoBtn {
       background: var(--table-header-bg);
       color: #000;
-      border: none;
+      border: 1px solid var(--border-color);
       padding: .4rem .8rem;
       border-radius: 4px;
       cursor: pointer;
@@ -222,7 +262,11 @@
     #toggleBtn:hover, #getBtn:hover {
       opacity: 0.9;
     }
-    #getConverterBtn:hover, #setConverterBtn:hover, #setRelayBtn:hover, #getConnectorStatusBtn:hover, #getEVInfoBtn:hover {
+    #getConverterBtn:hover,
+    #setConverterBtn:hover,
+    #setRelayBtn:hover,
+    #getConnectorStatusBtn:hover,
+    #getEVInfoBtn:hover {
       background: #c0c0c0;
     }
     #toggleBtn {
@@ -239,8 +283,23 @@
 </head>
 <body>
   <div class="navbar">
-    <div class="navbar-title">OCPP WSS Panel</div>
-    <button class="mode-toggle" id="modeToggleBtn">Dark Mode</button>
+    <div class="navbar-title">
+      OCPP WSS Panel –> <span id="currentCP"></span>
+    </div>
+    <div class="navbar-buttons">
+      <button class="suffix-btn" id="cp01Btn" onclick="switchCP('CP_01')">CP_01</button>
+      <button class="suffix-btn" id="cp02Btn" onclick="switchCP('CP_02')">CP_02</button>
+      <button class="suffix-btn" id="cp03Btn" onclick="switchCP('CP_03')">CP_03</button>
+      <button class="mode-toggle" id="modeToggleBtn" title="Switch to Light Mode">
+        <svg class="icon moon" viewBox="0 0 24 24">
+          <path d="M9.37 5.51A7 7 0 0 0 14 19a7 7 0 0 0 7-7 7 7 0 0 0-7.51-7.37 8 8 0 1 1-4.12-4.12z"/>
+        </svg>
+        <svg class="icon sun" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="5"/>
+          <path d="M6.76 4.84l-1.8-1.79-1.42 1.42 1.79 1.8 1.43-1.43zM18 11h3v2h-3v-2zm-6 6v3h2v-3h-2zM4.22 19.78l1.79 1.8 1.42-1.42-1.8-1.79-1.41 1.41zM1 13h3v-2H1v2zM10 1h4v3h-4V1zM19.78 4.22l-1.8 1.79 1.42 1.42 1.79-1.8-1.41-1.41zM6.76 19.16l1.43-1.43-1.79-1.8-1.42 1.42 1.78 1.81zM22 13h-3v-2h3v2z"/>
+        </svg>
+      </button>
+    </div>
   </div>
   <div class="container">
     <div class="content">
@@ -251,9 +310,7 @@
         <div class="subheader">Request</div>
         <div class="filter">
           <label for="callFilter">Filter Requests: </label>
-          <select id="callFilter">
-            <option value="all">All</option>
-          </select>
+          <select id="callFilter"><option value="all">All</option></select>
         </div>
         <table id="call-table">
           <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
@@ -276,9 +333,7 @@
         <div class="subheader">Response</div>
         <div class="filter">
           <label for="resultFilter">Filter Responses: </label>
-          <select id="resultFilter">
-            <option value="all">All</option>
-          </select>
+          <select id="resultFilter"><option value="all">All</option></select>
         </div>
         <table id="result-table">
           <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
@@ -295,253 +350,208 @@
     </div>
   </div>
   <script>
-(function(){
-  const host = location.hostname || "localhost",
-        port = 2409,
-        url = `ws://${host}:${port}/Ctr`;
+  (function(){
+    const host = location.hostname || "localhost", port = 2409;
+    let currentCP = '', ws;
+    const log           = document.getElementById('log'),
+          tblCall       = document.querySelector('#call-table tbody'),
+          descCall      = document.querySelector('#call-desc tbody'),
+          tblResult     = document.querySelector('#result-table tbody'),
+          descResult    = document.querySelector('#result-desc tbody'),
+          toggleBtn     = document.getElementById('toggleBtn'),
+          getBtn        = document.getElementById('getBtn'),
+          getConverterBtn       = document.getElementById('getConverterBtn'),
+          setConverterBtn       = document.getElementById('setConverterBtn'),
+          setRelayBtn           = document.getElementById('setRelayBtn'),
+          getConnectorStatusBtn = document.getElementById('getConnectorStatusBtn'),
+          getEVInfoBtn          = document.getElementById('getEVInfoBtn'),
+          modeToggleBtn = document.getElementById('modeToggleBtn'),
+          callFilter    = document.getElementById('callFilter'),
+          resultFilter  = document.getElementById('resultFilter'),
+          detail        = document.getElementById('detail'),
+          cp01Btn       = document.getElementById('cp01Btn'),
+          cp02Btn       = document.getElementById('cp02Btn'),
+          cp03Btn       = document.getElementById('cp03Btn'),
+          currentCPSpan = document.getElementById('currentCP');
 
-  const log = document.getElementById('log'),
-        tblCall = document.querySelector('#call-table tbody'),
-        descCall = document.querySelector('#call-desc tbody'),
-        tblResult = document.querySelector('#result-table tbody'),
-        descResult = document.querySelector('#result-desc tbody'),
-        toggleBtn = document.getElementById('toggleBtn'),
-        getBtn = document.getElementById('getBtn'),
-        getConverterBtn = document.getElementById('getConverterBtn'),
-        setConverterBtn = document.getElementById('setConverterBtn'),
-        setRelayBtn = document.getElementById('setRelayBtn'),
-        getConnectorStatusBtn = document.getElementById('getConnectorStatusBtn'),
-        getEVInfoBtn = document.getElementById('getEVInfoBtn'),
-        modeToggleBtn = document.getElementById('modeToggleBtn'),
-        callFilter = document.getElementById('callFilter'),
-        resultFilter = document.getElementById('resultFilter'),
-        detail = document.getElementById('detail');
+    let requestCommands  = new Set(['all']),
+        responseCommands = new Set(['all']),
+        messages         = { call: [], result: [] };
 
-  let ws;
-  let requestCommands = new Set(['all']);
-  let responseCommands = new Set(['all']);
-  let messages = { call: [], result: [] };
-
-  // Dark/Light mode toggle
-  modeToggleBtn.addEventListener('click', () => {
-    document.documentElement.classList.toggle('dark-mode');
-    modeToggleBtn.textContent = document.documentElement.classList.contains('dark-mode') 
-      ? 'Light Mode' 
-      : 'Dark Mode';
-  });
-
-  toggleBtn.addEventListener('click', () => {
-    const action = toggleBtn.textContent === 'Start' ? 'start' : 'stop';
-    toggleBtn.textContent = action === 'start' ? 'Stop' : 'Start';
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(action);
-      detail.scrollTop = detail.scrollHeight;
+    function updateActiveButton(){
+      cp01Btn.classList.toggle('active', currentCP==='CP_01');
+      cp02Btn.classList.toggle('active', currentCP==='CP_02');
+      cp03Btn.classList.toggle('active', currentCP==='CP_03');
     }
-  });
-
-  getBtn.addEventListener('click', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send('get');
-      detail.scrollTop = detail.scrollHeight;
+    function updateTitle(){
+      currentCPSpan.textContent = currentCP;
     }
-  });
-
-  getConverterBtn.addEventListener('click', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send('getConverter');
-      detail.scrollTop = detail.scrollHeight;
+    function getWebSocketUrl(){
+      return `ws://${host}:${port}/${currentCP}`;
     }
-  });
+    window.switchCP = function(cp){
+      if(cp === currentCP) return;
+      currentCP = cp;
+      updateActiveButton();
+      updateTitle();
+      if(ws && ws.readyState === WebSocket.OPEN) ws.close();
+      log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${cp}…</span></div>`;
+      requestCommands  = new Set(['all']);
+      responseCommands = new Set(['all']);
+      messages = { call: [], result: [] };
+      tblCall.innerHTML    = '';
+      descCall.innerHTML   = '';
+      tblResult.innerHTML  = '';
+      descResult.innerHTML = '';
+      updateDropdown(callFilter, requestCommands);
+      updateDropdown(resultFilter, responseCommands);
+      connect();
+    };
 
-  setConverterBtn.addEventListener('click', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send('setConverter');
-      detail.scrollTop = detail.scrollHeight;
-    }
-  });
-
-  setRelayBtn.addEventListener('click', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send('setRelay');
-      detail.scrollTop = detail.scrollHeight;
-    }
-  });
-
-  getConnectorStatusBtn.addEventListener('click', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send('getConnectorStatus');
-      detail.scrollTop = detail.scrollHeight;
-    }
-  });
-
-  getEVInfoBtn.addEventListener('click', () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send('getEVInfo');
-      detail.scrollTop = detail.scrollHeight;
-    }
-  });
-
-  function nowTs(){
-    const d = new Date(), z = n => String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`
-         + ` ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
-  }
-
-  function appendLog(msg, cls=''){
-    const e = document.createElement('div'),
-          ts = document.createElement('span'),
-          msgSpan = document.createElement('span');
-    e.className = 'entry' + (cls ? ' ' + cls : '');
-    ts.className = 'ts';
-    ts.textContent = nowTs();
-    msgSpan.className = 'msg';
-    msgSpan.textContent = msg;
-    e.appendChild(ts);
-    e.appendChild(msgSpan);
-    log.appendChild(e);
-    log.scrollTop = log.scrollHeight;
-  }
-
-  function updateDropdown(dropdown, commands) {
-    const selected = dropdown.value;
-    dropdown.innerHTML = '';
-    commands.forEach(cmd => {
-      const option = document.createElement('option');
-      option.value = cmd;
-      option.textContent = cmd;
-      dropdown.appendChild(option);
+    modeToggleBtn.addEventListener('click', ()=>{
+      const isDark = document.documentElement.classList.toggle('dark-mode');
+      modeToggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
     });
-    dropdown.value = commands.has(selected) ? selected : 'all';
-  }
-
-  function setLatest(tbodyRaw, tbodyDesc, raw, type) {
-    const isScrolledToBottom = detail.scrollHeight - detail.clientHeight <= detail.scrollTop + 1;
-    const filter = type === 'call' ? callFilter.value : resultFilter.value;
-
-    if (filter === 'all' || (messages[type].length > 0 && messages[type][messages[type].length - 1].command === filter)) {
-      tbodyRaw.innerHTML = '';
-      const trR = document.createElement('tr'),
-            tdT = document.createElement('td'),
-            tdJ = document.createElement('td');
-      tdT.innerHTML = `<span class="ts">${nowTs()}</span>`;
-      tdJ.textContent = raw;
-      trR.append(tdT, tdJ);
-      tbodyRaw.appendChild(trR);
-
-      tbodyDesc.innerHTML = '';
-      let obj;
-      try { obj = JSON.parse(raw); }
-      catch {
-        const tr = document.createElement('tr'),
-              tdN = document.createElement('td'),
-              tdV = document.createElement('td');
-        tdN.textContent = 'raw';
-        tdV.textContent = raw;
-        tr.append(tdN, tdV);
-        tbodyDesc.appendChild(tr);
-        if (isScrolledToBottom) {
-          detail.scrollTop = detail.scrollHeight;
-        }
-        return;
-      }
-      if (Array.isArray(obj)) {
-        obj.forEach((v, i) => {
-          const tr = document.createElement('tr'),
-                tdN = document.createElement('td'),
-                tdV = document.createElement('td');
-          tdN.textContent = `Index ${i}`;
-          tdV.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
-          tr.append(tdN, tdV);
-          tbodyDesc.appendChild(tr);
-        });
-      } else if (obj && typeof obj === 'object') {
-        for (const [k, v] of Object.entries(obj)) {
-          const tr = document.createElement('tr'),
-                tdN = document.createElement('td'),
-                tdV = document.createElement('td');
-          tdN.textContent = k;
-          tdV.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
-          tr.append(tdN, tdV);
-          tbodyDesc.appendChild(tr);
-        }
-      } else {
-        const tr = document.createElement('tr'),
-              tdN = document.createElement('td'),
-              tdV = document.createElement('td');
-        tdN.textContent = 'value';
-        tdV.textContent = String(obj);
-        tr.append(tdN, tdV);
-        tbodyDesc.appendChild(tr);
-      }
-      if (isScrolledToBottom) {
+    toggleBtn.addEventListener('click', ()=>{
+      const action = toggleBtn.textContent==='Start'?'start':'stop';
+      toggleBtn.textContent = action==='start'?'Stop':'Start';
+      if(ws && ws.readyState===WebSocket.OPEN){
+        ws.send(action);
         detail.scrollTop = detail.scrollHeight;
       }
-    }
-  }
+    });
+    getBtn.addEventListener('click', ()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('get'); detail.scrollTop=detail.scrollHeight; } });
+    getConverterBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getConverter'); detail.scrollTop=detail.scrollHeight; } });
+    setConverterBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('setConverter'); detail.scrollTop=detail.scrollHeight; } });
+    setRelayBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('setRelay'); detail.scrollTop=detail.scrollHeight; } });
+    getConnectorStatusBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getConnectorStatus'); detail.scrollTop=detail.scrollHeight; } });
+    getEVInfoBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getEVInfo'); detail.scrollTop=detail.scrollHeight; } });
 
-  function categorize(raw) {
-    let obj;
-    try { obj = JSON.parse(raw); }
-    catch { return; }
-    if (!Array.isArray(obj)) return;
-    const t0 = obj[0], timestamp = nowTs();
-    if (t0 === 2 ) {
-      const action = obj[2];
-      requestCommands.add(action);
-      messages.call.push({ command: action, raw, timestamp });
-      updateDropdown(callFilter, requestCommands);
-      setLatest(tblCall, descCall, raw, 'call');
-    } else if (t0 === 3) {
-      const payload = obj[2];
-      if (payload && typeof payload === 'object' && 'command' in payload && payload.command) {
-        const command = payload.command;
-        responseCommands.add(command);
-        messages.result.push({ command, raw, timestamp });
-        updateDropdown(resultFilter, responseCommands);
-        setLatest(tblResult, descResult, raw, 'result');
-      } else {
-        messages.result.push({ command: null, raw, timestamp });
-        setLatest(tblResult, descResult, raw, 'result');
+    function nowTs(){
+      const d=new Date(), z=n=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+    }
+    function appendLog(msg,cls=''){
+      const e=document.createElement('div'),
+            ts=document.createElement('span'),
+            ms=document.createElement('span');
+      e.className='entry'+(cls?' '+cls:'');
+      ts.className='ts'; ts.textContent=nowTs();
+      ms.className='msg'; ms.textContent=msg;
+      e.append(ts,ms);
+      log.appendChild(e);
+      log.scrollTop=log.scrollHeight;
+    }
+    function updateDropdown(dropdown,cmds){
+      const sel=dropdown.value;
+      dropdown.innerHTML='';
+      cmds.forEach(c=>{
+        const o=document.createElement('option');
+        o.value=c; o.textContent=c;
+        dropdown.appendChild(o);
+      });
+      dropdown.value = cmds.has(sel)?sel:'all';
+    }
+    function setLatest(tbl,desc,raw,type){
+      const atBottom = detail.scrollHeight-detail.clientHeight<=detail.scrollTop+1;
+      const filter = type==='call'?callFilter.value:resultFilter.value;
+      if(filter==='all'||messages[type].slice(-1)[0].command===filter){
+        tbl.innerHTML=''; desc.innerHTML='';
+        const tr=document.createElement('tr'),
+              td1=document.createElement('td'),
+              td2=document.createElement('td');
+        td1.innerHTML=`<span class="ts">${nowTs()}</span>`;
+        td2.textContent=raw;
+        tr.append(td1,td2); tbl.appendChild(tr);
+        let o;
+        try{ o=JSON.parse(raw); }
+        catch{
+          const r=document.createElement('tr'),
+                n=document.createElement('td'),
+                v=document.createElement('td');
+          n.textContent='raw'; v.textContent=raw;
+          r.append(n,v); desc.appendChild(r);
+          if(atBottom) detail.scrollTop=detail.scrollHeight;
+          return;
+        }
+        if(Array.isArray(o)){
+          o.forEach((v,i)=>{
+            const r=document.createElement('tr'),
+                  n=document.createElement('td'),
+                  v2=document.createElement('td');
+            n.textContent=`Index ${i}`;
+            v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
+            r.append(n,v2); desc.appendChild(r);
+          });
+        } else if(o&&typeof o==='object'){
+          Object.entries(o).forEach(([k,v])=>{
+            const r=document.createElement('tr'),
+                  n=document.createElement('td'),
+                  v2=document.createElement('td');
+            n.textContent=k;
+            v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
+            r.append(n,v2); desc.appendChild(r);
+          });
+        } else {
+          const r=document.createElement('tr'),
+                n=document.createElement('td'),
+                v2=document.createElement('td');
+          n.textContent='value'; v2.textContent=String(o);
+          r.append(n,v2); desc.appendChild(r);
+        }
+        if(atBottom) detail.scrollTop=detail.scrollHeight;
       }
     }
-  }
-
-  function updateTable(type) {
-    const tbodyRaw = type === 'call' ? tblCall : tblResult;
-    const tbodyDesc = type === 'call' ? descCall : descResult;
-    const filter = type === 'call' ? callFilter.value : resultFilter.value;
-    tbodyRaw.innerHTML = '';
-    tbodyDesc.innerHTML = '';
-    const filteredMessages = filter === 'all' ? messages[type] : messages[type].filter(msg => msg.command === filter);
-    if (filteredMessages.length > 0) {
-      const latest = filteredMessages[filteredMessages.length - 1];
-      setLatest(tbodyRaw, tbodyDesc, latest.raw, type);
+    function categorize(raw){
+      let o;
+      try{ o=JSON.parse(raw); }catch{return;}
+      if(!Array.isArray(o)) return;
+      const t0=o[0], ts=nowTs();
+      if(t0===2){
+        const cmd=o[2]; if(cmd==='Heartbeat') return;
+        requestCommands.add(cmd);
+        messages.call.push({command:cmd,raw,ts});
+        updateDropdown(callFilter,requestCommands);
+        setLatest(tblCall,descCall,raw,'call');
+      } else if(t0===3){
+        const p=o[2];
+        if(p&&p.command){
+          const cmd=p.command;
+          responseCommands.add(cmd);
+          messages.result.push({command:cmd,raw,ts});
+          updateDropdown(resultFilter,responseCommands);
+          setLatest(tblResult,descResult,raw,'result');
+        } else {
+          messages.result.push({command:null,raw,ts});
+          setLatest(tblResult,descResult,raw,'result');
+        }
+      }
     }
-  }
-
-  callFilter.addEventListener('change', () => updateTable('call'));
-  resultFilter.addEventListener('change', () => updateTable('result'));
-
-  function connect(){
-    appendLog(`Connecting to ${url}`, 'status');
-    ws = new WebSocket(url);
-    ws.onopen = () => appendLog('Connected', 'status');
-    ws.onmessage = ev => {
-      appendLog(ev.data);
-      categorize(ev.data);
-    };
-    ws.onclose = () => {
-      appendLog('Connection closed; retrying in 3s…', 'status');
-      setTimeout(connect, 3000);
-    };
-    ws.onerror = err => {
-      console.error('WS error', err);
-      appendLog('WebSocket error', 'status');
-    };
-  }
-
-  connect();
-})();
-</script>
+    function updateTable(type){
+      const tbl  = type==='call'?tblCall:tblResult,
+            desc = type==='call'?descCall:descResult,
+            filter = type==='call'?callFilter.value:resultFilter.value;
+      tbl.innerHTML=''; desc.innerHTML='';
+      const arr = filter==='all'?messages[type]:messages[type].filter(m=>m.command===filter);
+      if(arr.length) setLatest(tbl,desc,arr[arr.length-1].raw,type);
+    }
+    callFilter.addEventListener('change',()=>updateTable('call'));
+    resultFilter.addEventListener('change',()=>updateTable('result'));
+    function connect(){
+      appendLog(`Connecting to ${getWebSocketUrl()}`,'status');
+      ws=new WebSocket(getWebSocketUrl());
+      ws.onopen    =()=>appendLog('Connected','status');
+      ws.onmessage =ev=>{ appendLog(ev.data); categorize(ev.data); };
+      ws.onclose   =()=>{ appendLog('Connection closed; retrying in 3s…','status'); setTimeout(connect,3000); };
+      ws.onerror   =err=>{ console.error(err); appendLog('WebSocket error','status'); };
+    }
+    // initialize
+    updateActiveButton();
+    updateTitle();
+    updateDropdown(callFilter, requestCommands);
+    updateDropdown(resultFilter, responseCommands);
+    connect();
+  })();
+  </script>
 </body>
 </html>
