@@ -20,9 +20,15 @@ boot_unique_ids = {}
 def current_time() -> str:
     return datetime.now(TZ_BEIJING).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-async def handler(websocket, path=None):
+async def handler(websocket, path=None):  # Remove default path
+    actual_path = websocket.request.path or "/"  # Use actual path, default to "/" if None
     addr = websocket.remote_address
-    suffix = websocket.request.path
+    allowed_paths = ["/CP_01", "/CP_02", "/CP_03", "/Ctr"]
+    if actual_path not in allowed_paths:
+        await websocket.close(code=1008)
+        return
+
+    suffix = actual_path
     print(f"[{current_time()}] (づ｡◕‿‿◕｡)づ Connected: {addr}{suffix}")
     connected.add(websocket)
 
@@ -50,97 +56,94 @@ async def handler(websocket, path=None):
                             }
                         }
                     }
-                elif  cmd == "stop":
+                elif cmd == "stop":
                     action = "RemoteStopTransaction"
                     payload = {
                         "transactionId": 1
                     }
-                elif  cmd == "get":
+                elif cmd == "get":
                     action = "TriggerMessage"
                     payload = {
                         "requestedMessage": "MeterValues",
                         "connectorId": 1
                     }
 
-
-
                 call_msg = [2, ws_unique_id, action, payload]
                 text = json.dumps(call_msg)
-                # send to all clients
+                # Send only to clients connected to the same path or /Ctr
                 dead = set()
                 for ws in connected:
-                    try:
-                        await ws.send(text)
-                    except:
-                        dead.add(ws)
+                    if ws.request.path in [actual_path, "/Ctr"]:
+                        try:
+                            await ws.send(text)
+                        except:
+                            dead.add(ws)
                 for ws in dead:
                     connected.discard(ws)
                 print(f"[{current_time()}] ✨ Sent {call_msg[2]} CALL → {text!r}")
-                # skip all other logic for this raw message
+                # Skip all other logic for this raw message
                 continue
 
-            if cmd in ("getConverter","setConverter","setRelay","getConnectorStatus","getEVInfo"):
+            if cmd in ("getConverter", "setConverter", "setRelay", "getConnectorStatus", "getEVInfo"):
                 ws_unique_id = uuid.uuid4().hex
-                if  cmd == "getConverter":
+                if cmd == "getConverter":
                     action = "GetConverter"
                     payload = {
-                        "ChargerID":"CP_01"
+                        "ChargerID": actual_path.lstrip('/')
                     }
-
-                elif  cmd == "setConverter":
+                elif cmd == "setConverter":
                     action = "SetConverter"
                     payload = {
-                        "ChargerID":"CP_01",
-                        "Status":"On",
-                        "Voltage":450,
-                        "Current":28.6
+                        "ChargerID": actual_path.lstrip('/'),
+                        "Status": "On",
+                        "Voltage": 450,
+                        "Current": 28.6
                     }
-
-                elif  cmd == "setRelay":
+                elif cmd == "setRelay":
                     action = "SetRelay"
                     payload = {
-                        "ChargerID":"CP_01",
-                        "Status":"On"
+                        "ChargerID": actual_path.lstrip('/'),
+                        "Status": "On"
                     }
-
-                elif  cmd == "getConnectorStatus":
+                elif cmd == "getConnectorStatus":
                     action = "GetConnectorStatus"
                     payload = {
-                        "ChargerID": "CP_01"
+                        "ChargerID": actual_path.lstrip('/')
                     }
-
-                elif  cmd == "getEVInfo":
+                elif cmd == "getEVInfo":
                     action = "GetEVInfo"
                     payload = {
-                        "ChargerID": "CP_01"
+                        "ChargerID": actual_path.lstrip('/')
                     }
 
                 call_msg = [
-                            2,
-                            ws_unique_id,"DataTransfer",
-                            {
-                            "command": action,
-                            "payload": payload
-                            }
-                        ]
+                    2,
+                    ws_unique_id,
+                    "DataTransfer",
+                    {
+                        "command": action,
+                        "payload": payload
+                    }
+                ]
                 text = json.dumps(call_msg)
-                # send to all clients
+                # Send only to clients connected to the same path or /Ctr
                 dead = set()
                 for ws in connected:
-                    try:
-                        await ws.send(text)
-                    except:
-                        dead.add(ws)
+                    if ws.request.path in [actual_path, "/Ctr"]:
+                        try:
+                            await ws.send(text)
+                        except:
+                            dead.add(ws)
                 for ws in dead:
                     connected.discard(ws)
                 print(f"[{current_time()}] ✨ Sent {call_msg[2]} CALL → {text!r}")
-                # skip all other logic for this raw message
+                # Skip all other logic for this raw message
                 continue
 
-            # ── Broadcast incoming message to all other clients ──
+            # ── Broadcast incoming message to clients on the same path or /Ctr ──
             dead = set()
             for ws in connected:
-                if ws is websocket:
+                if ws is websocket or ws.request.path not in [actual_path, "/Ctr"]:
                     continue
                 try:
                     await ws.send(raw)
@@ -155,7 +158,7 @@ async def handler(websocket, path=None):
             except json.JSONDecodeError:
                 print(f"[{ts}] ⚠️ Invalid JSON, skipping")
                 continue
-                
+
             # OCPP CALL: [2, UniqueId, Action, Payload]
             if (
                 isinstance(msg, list)
@@ -191,7 +194,7 @@ async def handler(websocket, path=None):
 
                 # Send Heartbeat after receiving clients' heartbeat
                 if action == "Heartbeat":
-                    wss_call = [3, unique_id, {"currentTime":current_time()}]
+                    wss_call = [3, unique_id, {"currentTime": current_time()}]
                     wss_text = json.dumps(wss_call)
                     await websocket.send(wss_text)
                     print(f"[{ts}] ♥ Sent Heartbeat RES → {wss_text!r}")
