@@ -323,354 +323,458 @@
       .entry .msg { max-width:calc(100% - 120px); }
       .modal-content { width: 95%; }
     }
-  </style>
-</head>
-<body>
-  <div class="navbar">
-    <div class="navbar-title">
-      OCPP WSS Panel –> <span id="currentCP"></span>
-    </div>
-    <div class="navbar-buttons">
-      <button class="suffix-btn" id="cp01Btn" onclick="switchCP('CP_01')">CP_01</button>
-      <button class="suffix-btn" id="cp02Btn" onclick="switchCP('CP_02')">CP_02</button>
-      <button class="suffix-btn" id="cp03Btn" onclick="switchCP('CP_03')">CP_03</button>
-      <button class="mode-toggle" id="modeToggleBtn" title="Switch to Dark Mode">
-        <svg class="icon moon" viewBox="0 0 24 24">
-          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-        </svg>
-        <svg class="icon sun" viewBox="0 0 24 24">
-          <path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M6.34 6.34L4.93 4.93m12.02 0l-1.42 1.42M6.34 17.66l-1.42 1.42M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-
-  <div class="container">
-    <div class="content">
-      <div id="log">
-        <div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting…</span></div>
+  /* Toast Notification */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: #fff;
+        padding: 0.8rem 1.5rem;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        z-index: 2000;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-10px);
+      }
+      :root.dark-mode .toast {
+        background: #555;
+      }
+      @media(max-width:700px){
+        .content { flex-direction:column; }
+        #detail { border-left:none; border-top:1px solid var(--border-color); }
+        .entry .ts { width:120px; }
+        .entry .msg { max-width:calc(100% - 120px); }
+        .modal-content { width: 95%; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="navbar">
+      <div class="navbar-title">
+        OCPP WSS Panel –> <span id="currentCP"></span>
       </div>
-      <div id="detail">
-        <div class="subheader">Request</div>
-        <div class="filter">
-          <label for="callFilter">Filter Requests:</label>
-          <select id="callFilter"><option value="all">All</option></select>
+      <div class="navbar-buttons">
+        <button class="suffix-btn" id="cp01Btn" onclick="switchCP('CP_01')">CP_01</button>
+        <button class="suffix-btn" id="cp02Btn" onclick="switchCP('CP_02')">CP_02</button>
+        <button class="suffix-btn" id="cp03Btn" onclick="switchCP('CP_03')">CP_03</button>
+        <button class="mode-toggle" id="modeToggleBtn" title="Switch to Dark Mode">
+          <svg class="icon moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+          <svg class="icon sun" viewBox="0 0 24 24">
+            <path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M6.34 6.34L4.93 4.93m12.02 0l-1.42 1.42M6.34 17.66l-1.42 1.42M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  
+    <div class="container">
+      <div class="content">
+        <div id="log">
+          <div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting…</span></div>
         </div>
-        <table id="call-table">
-          <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <table id="call-desc">
-          <thead><tr><th>Name</th><th>Value</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="table-footer">
-          <div class="button-group">
-            <button id="getConverterBtn">GetConverter</button>
-            <button id="setConverterBtn">SetConverter</button>
-            <button id="setRelayBtn">SetRelay</button>
-            <button id="getConnectorStatusBtn">GetConnectorStatus</button>
-            <button id="getEVInfoBtn">GetEVInfo</button>
+        <div id="detail">
+          <div class="subheader">Request</div>
+          <div class="filter">
+            <label for="callFilter">Filter Requests:</label>
+            <select id="callFilter"><option value="all">All</option></select>
           </div>
-          <button id="toggleBtn">Start</button>
-        </div>
-        <div class="subheader">Response</div>
-        <div class="filter">
-          <label for="resultFilter">Filter Responses:</label>
-          <select id="resultFilter"><option value="all">All</option></select>
-        </div>
-        <table id="result-table">
-          <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <table id="result-desc">
-          <thead><tr><th>Name</th><th>Value</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="table-footer response-footer">
-          <button id="getBtn">Get</button>
+          <table id="call-table">
+            <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <table id="call-desc">
+            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="table-footer">
+            <div class="button-group">
+              <button id="getConverterBtn">GetConverter</button>
+              <button id="setConverterBtn">SetConverter</button>
+              <button id="setRelayBtn">SetRelay</button>
+              <button id="getConnectorStatusBtn">GetConnectorStatus</button>
+              <button id="getEVInfoBtn">GetEVInfo</button>
+            </div>
+            <button id="toggleBtn">Start</button>
+          </div>
+          <div class="subheader">Response</div>
+          <div class="filter">
+            <label for="resultFilter">Filter Responses:</label>
+            <select id="resultFilter"><option value="all">All</option></select>
+          </div>
+          <table id="result-table">
+            <thead><tr><th>Timestamp</th><th>Raw JSON</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <table id="result-desc">
+            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="table-footer response-footer">
+            <button id="getBtn">Get</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Modal for SetConverter and SetRelay -->
-  <div class="modal" id="commandModal">
-    <div class="modal-content">
-      <div class="modal-header" id="modalTitle"></div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-footer">
-        <button class="modal-btn cancel" id="modalCancel">Cancel</button>
-        <button class="modal-btn" id="modalSubmit">Submit</button>
+  
+    <!-- Modal for SetConverter and SetRelay -->
+    <div class="modal" id="commandModal">
+      <div class="modal-content">
+        <div class="modal-header" id="modalTitle"></div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-footer">
+          <button class="modal-btn cancel" id="modalCancel">Cancel</button>
+          <button class="modal-btn" id="modalSubmit">Submit</button>
+        </div>
       </div>
     </div>
-  </div>
-
-  <script>
-  (function(){
-    const host = location.hostname || "localhost", port = 2409;
-    let currentCP = '', ws;
-    const log           = document.getElementById('log'),
-          tblCall       = document.querySelector('#call-table tbody'),
-          descCall      = document.querySelector('#call-desc tbody'),
-          tblResult     = document.querySelector('#result-table tbody'),
-          descResult    = document.querySelector('#result-desc tbody'),
-          toggleBtn     = document.getElementById('toggleBtn'),
-          getBtn        = document.getElementById('getBtn'),
-          getConverterBtn       = document.getElementById('getConverterBtn'),
-          setConverterBtn       = document.getElementById('setConverterBtn'),
-          setRelayBtn           = document.getElementById('setRelayBtn'),
-          getConnectorStatusBtn = document.getElementById('getConnectorStatusBtn'),
-          getEVInfoBtn          = document.getElementById('getEVInfoBtn'),
-          modeToggleBtn = document.getElementById('modeToggleBtn'),
-          callFilter    = document.getElementById('callFilter'),
-          resultFilter  = document.getElementById('resultFilter'),
-          detail        = document.getElementById('detail'),
-          cp01Btn       = document.getElementById('cp01Btn'),
-          cp02Btn       = document.getElementById('cp02Btn'),
-          cp03Btn       = document.getElementById('cp03Btn'),
-          currentCPSpan = document.getElementById('currentCP'),
-          modal         = document.getElementById('commandModal'),
-          modalTitle    = document.getElementById('modalTitle'),
-          modalBody     = document.getElementById('modalBody'),
-          modalCancel   = document.getElementById('modalCancel'),
-          modalSubmit   = document.getElementById('modalSubmit');
-
-    let requestCommands  = new Set(['all']),
-        responseCommands = new Set(['all']),
-        messages         = { call: [], result: [] };
-
-    function updateActiveButton(){
-      cp01Btn.classList.toggle('active', currentCP==='CP_01');
-      cp02Btn.classList.toggle('active', currentCP==='CP_02');
-      cp03Btn.classList.toggle('active', currentCP==='CP_03');
-    }
-    function updateTitle(){
-      currentCPSpan.textContent = currentCP;
-    }
-    function getWebSocketUrl(){
-      return `ws://${host}:${port}/${currentCP}`;
-    }
-    window.switchCP = function(cp){
-      if(cp === currentCP) return;
-      currentCP = cp;
+  
+    <script>
+    (function(){
+      const host = location.hostname || "localhost", port = 2409;
+      let currentCP = '', ws;
+      const log           = document.getElementById('log'),
+            tblCall       = document.querySelector('#call-table tbody'),
+            descCall      = document.querySelector('#call-desc tbody'),
+            tblResult     = document.querySelector('#result-table tbody'),
+            descResult    = document.querySelector('#result-desc tbody'),
+            toggleBtn     = document.getElementById('toggleBtn'),
+            getBtn        = document.getElementById('getBtn'),
+            getConverterBtn       = document.getElementById('getConverterBtn'),
+            setConverterBtn       = document.getElementById('setConverterBtn'),
+            setRelayBtn           = document.getElementById('setRelayBtn'),
+            getConnectorStatusBtn = document.getElementById('getConnectorStatusBtn'),
+            getEVInfoBtn          = document.getElementById('getEVInfoBtn'),
+            modeToggleBtn = document.getElementById('modeToggleBtn'),
+            callFilter    = document.getElementById('callFilter'),
+            resultFilter  = document.getElementById('resultFilter'),
+            detail        = document.getElementById('detail'),
+            cp01Btn       = document.getElementById('cp01Btn'),
+            cp02Btn       = document.getElementById('cp02Btn'),
+            cp03Btn       = document.getElementById('cp03Btn'),
+            currentCPSpan = document.getElementById('currentCP'),
+            modal         = document.getElementById('commandModal'),
+            modalTitle    = document.getElementById('modalTitle'),
+            modalBody     = document.getElementById('modalBody'),
+            modalCancel   = document.getElementById('modalCancel'),
+            modalSubmit   = document.getElementById('modalSubmit');
+  
+      let requestCommands  = new Set(['all']),
+          responseCommands = new Set(['all']),
+          messages         = { call: [], result: [] };
+  
+      // Toast Notification Function
+      function showToast(message) {
+        let toast = document.querySelector('.toast');
+        if (!toast) {
+          toast = document.createElement('div');
+          toast.className = 'toast';
+          document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300); // Remove after fade-out
+        }, 3000); // Display for 3 seconds
+      }
+  
+      function updateActiveButton(){
+        cp01Btn.classList.toggle('active', currentCP==='CP_01');
+        cp02Btn.classList.toggle('active', currentCP==='CP_02');
+        cp03Btn.classList.toggle('active', currentCP==='CP_03');
+      }
+      function updateTitle(){
+        currentCPSpan.textContent = currentCP;
+      }
+      function getWebSocketUrl(){
+        return `ws://${host}:${port}/${currentCP}`;
+      }
+      window.switchCP = function(cp){
+        if(cp === currentCP) return;
+        currentCP = cp;
+        updateActiveButton();
+        updateTitle();
+        if(ws && ws.readyState === WebSocket.OPEN) ws.close();
+        log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${cp}…</span></div>`;
+        requestCommands  = new Set(['all']);
+        responseCommands = new Set(['all']);
+        messages = { call: [], result: [] };
+        tblCall.innerHTML    = '';
+        descCall.innerHTML   = '';
+        tblResult.innerHTML  = '';
+        descResult.innerHTML = '';
+        updateDropdown(callFilter, requestCommands);
+        updateDropdown(resultFilter, responseCommands);
+        connect();
+      };
+  
+      modeToggleBtn.addEventListener('click', ()=>{
+        const isDark = document.documentElement.classList.toggle('dark-mode');
+        modeToggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+      });
+      toggleBtn.addEventListener('click', ()=>{
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        const action = toggleBtn.textContent==='Start'?'start':'stop';
+        toggleBtn.textContent = action==='start'?'Stop':'Start';
+        ws.send(action);
+        detail.scrollTop = detail.scrollHeight;
+      });
+      getBtn.addEventListener('click', ()=>{
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        ws.send('get');
+        detail.scrollTop = detail.scrollHeight;
+      });
+      getConverterBtn.addEventListener('click',()=>{
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        ws.send('getConverter');
+        detail.scrollTop = detail.scrollHeight;
+      });
+      getConnectorStatusBtn.addEventListener('click',()=>{
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        ws.send('getConnectorStatus');
+        detail.scrollTop = detail.scrollHeight;
+      });
+      getEVInfoBtn.addEventListener('click',()=>{
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        ws.send('getEVInfo');
+        detail.scrollTop = detail.scrollHeight;
+      });
+      setConverterBtn.addEventListener('click', () => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        showModal('setConverter');
+      });
+      setRelayBtn.addEventListener('click', () => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        showModal('setRelay');
+      });
+      modalSubmit.addEventListener('click', () => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          modal.style.display = 'none';
+          return;
+        }
+        // Existing modalSubmit logic
+        let command = modalTitle.textContent === 'Set Converter' ? 'setConverter' : 'setRelay';
+        let payload = { ChargerID: currentCP };
+        if (command === 'setConverter') {
+          payload.Status = document.getElementById('converterStatus').value;
+          payload.Voltage = parseInt(document.getElementById('voltage').value);
+          payload.Current = parseInt(document.getElementById('current').value);
+        } else {
+          payload.Status = document.getElementById('relayStatus').value;
+        }
+        const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+          (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+        );
+        const message = [
+          2,
+          uniqueId,
+          "DataTransfer",
+          {
+            command: command === 'setConverter' ? 'SetConverter' : 'SetRelay',
+            payload: payload
+          }
+        ];
+        ws.send(JSON.stringify(message));
+        detail.scrollTop = detail.scrollHeight;
+        modal.style.display = 'none';
+      });
+      modalCancel.addEventListener('click', () => {
+        modal.style.display = 'none';
+      });
+  
+      function showModal(command) {
+        modalTitle.textContent = command === 'setConverter' ? 'Set Converter' : 'Set Relay';
+        modalBody.innerHTML = '';
+        if (command === 'setConverter') {
+          modalBody.innerHTML = `
+            <label for="converterStatus">Status:</label>
+            <select id="converterStatus">
+              <option value="On">On</option>
+              <option value="Off">Off</option>
+            </select>
+            <label for="voltage">Voltage (V):</label>
+            <input type="number" id="voltage" value="0" min="0" step="1">
+            <label for="current">Current (A):</label>
+            <input type="number" id="current" value="0" min="0" step="1">
+          `;
+        } else {
+          modalBody.innerHTML = `
+            <label for="relayStatus">Status:</label>
+            <select id="relayStatus">
+              <option value="On">On</option>
+              <option value="Off">Off</option>
+            </select>
+          `;
+        }
+        modal.style.display = 'flex';
+      }
+  
+      function nowTs(){
+        const d=new Date(), z=n=>String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+      }
+      function appendLog(msg,cls=''){
+        const e=document.createElement('div'),
+              ts=document.createElement('span'),
+              ms=document.createElement('span');
+        e.className='entry'+(cls?' '+cls:'');
+        ts.className='ts'; ts.textContent=nowTs();
+        ms.className='msg'; ms.textContent=msg;
+        e.append(ts,ms);
+        log.appendChild(e);
+        log.scrollTop=log.scrollHeight;
+      }
+      function updateDropdown(dropdown,cmds){
+        const sel=dropdown.value;
+        dropdown.innerHTML='';
+        cmds.forEach(c=>{
+          const o=document.createElement('option');
+          o.value=c; o.textContent=c;
+          dropdown.appendChild(o);
+        });
+        dropdown.value = cmds.has(sel)?sel:'all';
+      }
+      function setLatest(tbl,desc,raw,type){
+        const atBottom = detail.scrollHeight-detail.clientHeight<=detail.scrollTop+1;
+        const filter = type==='call'?callFilter.value:resultFilter.value;
+        if(filter==='all'||messages[type].slice(-1)[0].command===filter){
+          tbl.innerHTML=''; desc.innerHTML='';
+          const tr=document.createElement('tr'),
+                td1=document.createElement('td'),
+                td2=document.createElement('td');
+          td1.innerHTML=`<span class="ts">${nowTs()}</span>`;
+          td2.textContent=raw;
+          tr.append(td1,td2); tbl.appendChild(tr);
+          let o;
+          try{ o=JSON.parse(raw); }
+          catch{
+            const r=document.createElement('tr'),
+                  n=document.createElement('td'),
+                  v=document.createElement('td');
+            n.textContent='raw'; v.textContent=raw;
+            r.append(n,v); desc.appendChild(r);
+            if(atBottom) detail.scrollTop=detail.scrollHeight;
+            return;
+          }
+          if(Array.isArray(o)){
+            o.forEach((v,i)=>{
+              const r=document.createElement('tr'),
+                    n=document.createElement('td'),
+                    v2=document.createElement('td');
+              n.textContent=`Index ${i}`;
+              v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
+              r.append(n,v2); desc.appendChild(r);
+            });
+          } else if(o&&typeof o==='object'){
+            Object.entries(o).forEach(([k,v])=>{
+              const r=document.createElement('tr'),
+                    n=document.createElement('td'),
+                    v2=document.createElement('td');
+              n.textContent=k;
+              v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
+              r.append(n,v2); desc.appendChild(r);
+            });
+          } else {
+            const r=document.createElement('tr'),
+                  n=document.createElement('td'),
+                  v2=document.createElement('td');
+            n.textContent='value'; v2.textContent=String(o);
+            r.append(n,v2); desc.appendChild(r);
+          }
+          if(atBottom) detail.scrollTop=detail.scrollHeight;
+        }
+      }
+      function categorize(raw){
+        let o;
+        try{ o=JSON.parse(raw); }catch{return;}
+        if(!Array.isArray(o)) return;
+        const t0=o[0], ts=nowTs();
+        if(t0===2){
+          const cmd=o[2]; if(cmd==='Heartbeat') return;
+          requestCommands.add(cmd);
+          messages.call.push({command:cmd,raw,ts});
+          updateDropdown(callFilter,requestCommands);
+          setLatest(tblCall,descCall,raw,'call');
+        } else if(t0===3){
+          const p=o[2];
+          if(p&&p.command){
+            const cmd=p.command;
+            responseCommands.add(cmd);
+            messages.result.push({command:cmd,raw,ts});
+            updateDropdown(resultFilter,responseCommands);
+            setLatest(tblResult,descResult,raw,'result');
+          } else {
+            messages.result.push({command:null,raw,ts});
+            setLatest(tblResult,descResult,raw,'result');
+          }
+        }
+      }
+      function updateTable(type){
+        const tbl  = type==='call'?tblCall:tblResult,
+              desc = type==='call'?descCall:descResult,
+              filter = type==='call'?callFilter.value:resultFilter.value;
+        tbl.innerHTML=''; desc.innerHTML='';
+        const arr = filter==='all'?messages[type]:messages[type].filter(m=>m.command===filter);
+        if(arr.length) setLatest(tbl,desc,arr[arr.length-1].raw,type);
+      }
+      callFilter.addEventListener('change',()=>{
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        updateTable('call');
+      });
+      resultFilter.addEventListener('change',()=>{
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          showToast('No server connection');
+          return;
+        }
+        updateTable('result');
+      });
+      function connect(){
+        appendLog(`Connecting to ${getWebSocketUrl()}`,'status');
+        ws=new WebSocket(getWebSocketUrl());
+        ws.onopen    =()=>appendLog('Connected','status');
+        ws.onmessage =ev=>{ appendLog(ev.data); categorize(ev.data); };
+        ws.onclose   =()=>{ appendLog('Connection closed; retrying in 3s…','status'); setTimeout(connect,3000); };
+        ws.onerror   =err=>{ console.error(err); appendLog('WebSocket error','status'); };
+      }
+      // initialize
       updateActiveButton();
       updateTitle();
-      if(ws && ws.readyState === WebSocket.OPEN) ws.close();
-      log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${cp}…</span></div>`;
-      requestCommands  = new Set(['all']);
-      responseCommands = new Set(['all']);
-      messages = { call: [], result: [] };
-      tblCall.innerHTML    = '';
-      descCall.innerHTML   = '';
-      tblResult.innerHTML  = '';
-      descResult.innerHTML = '';
       updateDropdown(callFilter, requestCommands);
       updateDropdown(resultFilter, responseCommands);
       connect();
-    };
-
-    modeToggleBtn.addEventListener('click', ()=>{
-      const isDark = document.documentElement.classList.toggle('dark-mode');
-      modeToggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
-    });
-    toggleBtn.addEventListener('click', ()=>{
-      const action = toggleBtn.textContent==='Start'?'start':'stop';
-      toggleBtn.textContent = action==='start'?'Stop':'Start';
-      if(ws && ws.readyState===WebSocket.OPEN){
-        ws.send(action);
-        detail.scrollTop = detail.scrollHeight;
-      }
-    });
-    getBtn.addEventListener('click', ()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('get'); detail.scrollTop=detail.scrollHeight; } });
-    getConverterBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getConverter'); detail.scrollTop=detail.scrollHeight; } });
-    getConnectorStatusBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getConnectorStatus'); detail.scrollTop=detail.scrollHeight; } });
-    getEVInfoBtn.addEventListener('click',()=>{ if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('getEVInfo'); detail.scrollTop=detail.scrollHeight; } });
-
-    // Modal handling
-    function showModal(command) {
-      modalTitle.textContent = command === 'setConverter' ? 'Set Converter' : 'Set Relay';
-      modalBody.innerHTML = '';
-      if (command === 'setConverter') {
-        modalBody.innerHTML = `
-          <label for="converterStatus">Status:</label>
-          <select id="converterStatus">
-            <option value="On">On</option>
-            <option value="Off">Off</option>
-          </select>
-          <label for="voltage">Voltage (V):</label>
-          <input type="number" id="voltage" value="450" min="0" step="1">
-          <label for="current">Current (A):</label>
-          <input type="number" id="current" value="28" min="0" step="1">
-        `;
-      } else {
-        modalBody.innerHTML = `
-          <label for="relayStatus">Status:</label>
-          <select id="relayStatus">
-            <option value="On">On</option>
-            <option value="Off">Off</option>
-          </select>
-        `;
-      }
-      modal.style.display = 'flex';
-      modalSubmit.onclick = () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          let payload = { ChargerID: currentCP };
-          if (command === 'setConverter') {
-            payload.Status = document.getElementById('converterStatus').value;
-            payload.Voltage = parseInt(document.getElementById('voltage').value);
-            payload.Current = parseInt(document.getElementById('current').value);
-          } else {
-            payload.Status = document.getElementById('relayStatus').value;
-          }
-          const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-            (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-          );
-          const message = [
-            2,
-            uniqueId,
-            "DataTransfer",
-            {
-              command: command === 'setConverter' ? 'SetConverter' : 'SetRelay',
-              payload: payload
-            }
-          ];
-          ws.send(JSON.stringify(message));
-          detail.scrollTop = detail.scrollHeight;
-        }
-        modal.style.display = 'none';
-      };
-      modalCancel.onclick = () => { modal.style.display = 'none'; };
-    }
-
-    setConverterBtn.addEventListener('click', () => { showModal('setConverter'); });
-    setRelayBtn.addEventListener('click', () => { showModal('setRelay'); });
-
-    function nowTs(){
-      const d=new Date(), z=n=>String(n).padStart(2,'0');
-      return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
-    }
-    function appendLog(msg,cls=''){
-      const e=document.createElement('div'),
-            ts=document.createElement('span'),
-            ms=document.createElement('span');
-      e.className='entry'+(cls?' '+cls:'');
-      ts.className='ts'; ts.textContent=nowTs();
-      ms.className='msg'; ms.textContent=msg;
-      e.append(ts,ms);
-      log.appendChild(e);
-      log.scrollTop=log.scrollHeight;
-    }
-    function updateDropdown(dropdown,cmds){
-      const sel=dropdown.value;
-      dropdown.innerHTML='';
-      cmds.forEach(c=>{
-        const o=document.createElement('option');
-        o.value=c; o.textContent=c;
-        dropdown.appendChild(o);
-      });
-      dropdown.value = cmds.has(sel)?sel:'all';
-    }
-    function setLatest(tbl,desc,raw,type){
-      const atBottom = detail.scrollHeight-detail.clientHeight<=detail.scrollTop+1;
-      const filter = type==='call'?callFilter.value:resultFilter.value;
-      if(filter==='all'||messages[type].slice(-1)[0].command===filter){
-        tbl.innerHTML=''; desc.innerHTML='';
-        const tr=document.createElement('tr'),
-              td1=document.createElement('td'),
-              td2=document.createElement('td');
-        td1.innerHTML=`<span class="ts">${nowTs()}</span>`;
-        td2.textContent=raw;
-        tr.append(td1,td2); tbl.appendChild(tr);
-        let o;
-        try{ o=JSON.parse(raw); }
-        catch{
-          const r=document.createElement('tr'),
-                n=document.createElement('td'),
-                v=document.createElement('td');
-          n.textContent='raw'; v.textContent=raw;
-          r.append(n,v); desc.appendChild(r);
-          if(atBottom) detail.scrollTop=detail.scrollHeight;
-          return;
-        }
-        if(Array.isArray(o)){
-          o.forEach((v,i)=>{
-            const r=document.createElement('tr'),
-                  n=document.createElement('td'),
-                  v2=document.createElement('td');
-            n.textContent=`Index ${i}`;
-            v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
-            r.append(n,v2); desc.appendChild(r);
-          });
-        } else if(o&&typeof o==='object'){
-          Object.entries(o).forEach(([k,v])=>{
-            const r=document.createElement('tr'),
-                  n=document.createElement('td'),
-                  v2=document.createElement('td');
-            n.textContent=k;
-            v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
-            r.append(n,v2); desc.appendChild(r);
-          });
-        } else {
-          const r=document.createElement('tr'),
-                n=document.createElement('td'),
-                v2=document.createElement('td');
-          n.textContent='value'; v2.textContent=String(o);
-          r.append(n,v2); desc.appendChild(r);
-        }
-        if(atBottom) detail.scrollTop=detail.scrollHeight;
-      }
-    }
-    function categorize(raw){
-      let o;
-      try{ o=JSON.parse(raw); }catch{return;}
-      if(!Array.isArray(o)) return;
-      const t0=o[0], ts=nowTs();
-      if(t0===2){
-        const cmd=o[2]; if(cmd==='Heartbeat') return;
-        requestCommands.add(cmd);
-        messages.call.push({command:cmd,raw,ts});
-        updateDropdown(callFilter,requestCommands);
-        setLatest(tblCall,descCall,raw,'call');
-      } else if(t0===3){
-        const p=o[2];
-        if(p&&p.command){
-          const cmd=p.command;
-          responseCommands.add(cmd);
-          messages.result.push({command:cmd,raw,ts});
-          updateDropdown(resultFilter,responseCommands);
-          setLatest(tblResult,descResult,raw,'result');
-        } else {
-          messages.result.push({command:null,raw,ts});
-          setLatest(tblResult,descResult,raw,'result');
-        }
-      }
-    }
-    function updateTable(type){
-      const tbl  = type==='call'?tblCall:tblResult,
-            desc = type==='call'?descCall:descResult,
-            filter = type==='call'?callFilter.value:resultFilter.value;
-      tbl.innerHTML=''; desc.innerHTML='';
-      const arr = filter==='all'?messages[type]:messages[type].filter(m=>m.command===filter);
-      if(arr.length) setLatest(tbl,desc,arr[arr.length-1].raw,type);
-    }
-    callFilter.addEventListener('change',()=>updateTable('call'));
-    resultFilter.addEventListener('change',()=>updateTable('result'));
-    function connect(){
-      appendLog(`Connecting to ${getWebSocketUrl()}`,'status');
-      ws=new WebSocket(getWebSocketUrl());
-      ws.onopen    =()=>appendLog('Connected','status');
-      ws.onmessage =ev=>{ appendLog(ev.data); categorize(ev.data); };
-      ws.onclose   =()=>{ appendLog('Connection closed; retrying in 3s…','status'); setTimeout(connect,3000); };
-      ws.onerror   =err=>{ console.error(err); appendLog('WebSocket error','status'); };
-    }
-    // initialize
-    updateActiveButton();
-    updateTitle();
-    updateDropdown(callFilter, requestCommands);
-    updateDropdown(resultFilter, responseCommands);
-    connect();
-  })();
-  </script>
-</body>
+    })();
+    </script>
+  </body>
 </html>
