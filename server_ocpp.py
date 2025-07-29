@@ -190,7 +190,7 @@ async def handler(websocket, path=None):  # Remove default path
                     wss_call = [3, unique_id, {}]
                     wss_text = json.dumps(wss_call)
                     await websocket.send(wss_text)
-                    print(f"[{ts}] ♥ Sent StatusNotification RES → {wss_text!r}")
+                    print(f"[{ts}] ✿ Sent StatusNotification RES → {wss_text!r}")
 
                 # Send Heartbeat after receiving clients' heartbeat
                 if action == "Heartbeat":
@@ -209,7 +209,7 @@ async def handler(websocket, path=None):  # Remove default path
                     }]
                     wss_text = json.dumps(wss_call)
                     await websocket.send(wss_text)
-                    print(f"[{ts}] ♥ Sent StartTransaction RES → {wss_text!r}")
+                    print(f"[{ts}] ╬ Sent StartTransaction RES → {wss_text!r}")
 
                 # If it was a StopTransaction, send "Accepted" and store unique_id
                 if action == "StopTransaction":
@@ -221,14 +221,14 @@ async def handler(websocket, path=None):  # Remove default path
                     }]
                     wss_text = json.dumps(wss_call)
                     await websocket.send(wss_text)
-                    print(f"[{ts}] ♥ Sent StopTransaction RES → {wss_text!r}")
+                    print(f"[{ts}] 乂 Sent StopTransaction RES → {wss_text!r}")
 
                 # If it was a MeterValues, send "Accepted" and store unique_id
                 if action == "MeterValues":
                     wss_call = [3, unique_id, {}]
                     wss_text = json.dumps(wss_call)
                     await websocket.send(wss_text)
-                    print(f"[{ts}] ♥ Sent MeterValues RES → {wss_text!r}")
+                    print(f"[{ts}] Σ Sent MeterValues RES → {wss_text!r}")
 
     except websockets.exceptions.ConnectionClosed:
         pass
