@@ -230,6 +230,18 @@ async def handler(websocket, path=None):  # Remove default path
                     await websocket.send(wss_text)
                     print(f"[{ts}] Σ Sent MeterValues RES → {wss_text!r}")
 
+                # If it was a DataTransfer for SetConverter or SetRelay, send response
+                if action == "DataTransfer" and isinstance(payload, dict) and "command" in payload:
+                    if payload["command"] in ["SetConverter", "SetRelay"]:
+                        wss_call = [2, unique_id, "DataTransfer",
+                        {
+                                "command": payload["command"],
+                                "payload": payload.get("payload", {})
+                            }
+                        ]
+                        wss_text = json.dumps(wss_call)
+                        print(f"[{ts}] ✨ Sent {payload['command']} CALL → {wss_text!r}")
+
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
