@@ -157,7 +157,7 @@
       -ms-overflow-style: none;
     }
     #log::-webkit-scrollbar, #detail::-webkit-scrollbar { display: none; }
-    #log:hover, #detail:hover { scrollbarcant: none; }
+    #log:hover, #detail:hover { scrollbar-width: thin; -ms-overflow-style: auto; }
     #log:hover::-webkit-scrollbar, #detail:hover::-webkit-scrollbar {
       display: block; width:8px;
     }
@@ -431,8 +431,13 @@
   <script>
   (function(){
     const host = location.hostname || "localhost", port = 2409;
-    let currentCP = '', ws;
+    let currentCP = ''; // Default to CP_01
     let chargerStatus = ''; // Track the latest charger status
+    const wsConnections = { // Track WebSocket connections for all CPs
+      'CP_01': null,
+      'CP_02': null,
+      'CP_03': null
+    };
     const log           = document.getElementById('log'),
           tblCall       = document.querySelector('#call-table tbody'),
           descCall      = document.querySelector('#call-desc tbody'),
@@ -487,16 +492,28 @@
     function updateTitle(){
       currentCPSpan.textContent = currentCP;
     }
-    function getWebSocketUrl(){
-      return `ws://${host}:${port}/${currentCP}`;
+    function getWebSocketUrl(cp){
+      return `ws://${host}:${port}/${cp}`;
     }
     window.switchCP = function(cp){
       if(cp === currentCP) return;
+      // Disconnect all other charge points
+      const otherCPs = ['CP_01', 'CP_02', 'CP_03'].filter(otherCP => otherCP !== cp);
+      otherCPs.forEach(otherCP => {
+        if (wsConnections[otherCP] && wsConnections[otherCP].readyState === WebSocket.OPEN) {
+          wsConnections[otherCP].close();
+          wsConnections[otherCP] = null;
+        }
+      });
+      // Close current WebSocket if open
+      if (wsConnections[currentCP] && wsConnections[currentCP].readyState === WebSocket.OPEN) {
+        wsConnections[currentCP].close();
+        wsConnections[currentCP] = null;
+      }
       currentCP = cp;
       chargerStatus = ''; // Reset charger status on CP switch
       updateActiveButton();
       updateTitle();
-      if(ws && ws.readyState === WebSocket.OPEN) ws.close();
       log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${cp}…</span></div>`;
       requestCommands  = new Set(['all']);
       responseCommands = new Set(['all']);
@@ -507,7 +524,7 @@
       descResult.innerHTML = '';
       updateDropdown(callFilter, requestCommands);
       updateDropdown(resultFilter, responseCommands);
-      connect();
+      connect(cp);
     };
 
     modeToggleBtn.addEventListener('click', ()=>{
@@ -515,7 +532,7 @@
       modeToggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
     });
     toggleBtn.addEventListener('click', ()=>{
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
@@ -525,57 +542,57 @@
         return;
       }
       toggleBtn.textContent = action==='start'?'Stop':'Start';
-      ws.send(action);
+      wsConnections[currentCP].send(action);
       detail.scrollTop = detail.scrollHeight;
     });
     getBtn.addEventListener('click', ()=>{
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
-      ws.send('get');
+      wsConnections[currentCP].send('get');
       detail.scrollTop = detail.scrollHeight;
     });
     getConverterBtn.addEventListener('click',()=>{
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
-      ws.send('getConverter');
+      wsConnections[currentCP].send('getConverter');
       detail.scrollTop = detail.scrollHeight;
     });
     getConnectorStatusBtn.addEventListener('click',()=>{
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
-      ws.send('getConnectorStatus');
+      wsConnections[currentCP].send('getConnectorStatus');
       detail.scrollTop = detail.scrollHeight;
     });
     getEVInfoBtn.addEventListener('click',()=>{
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
-      ws.send('getEVInfo');
+      wsConnections[currentCP].send('getEVInfo');
       detail.scrollTop = detail.scrollHeight;
     });
     setConverterBtn.addEventListener('click', () => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
       showModal('setConverter');
     });
     setRelayBtn.addEventListener('click', () => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
       showModal('setRelay');
     });
     modalSubmit.addEventListener('click', () => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         modal.style.display = 'none';
         return;
@@ -583,11 +600,25 @@
       let command = modalTitle.textContent === 'Set Converter' ? 'setConverter' : 'setRelay';
       let payload = { ChargerID: currentCP };
       if (command === 'setConverter') {
-        payload.Status = document.getElementById('converterStatus').value;
-        payload.Voltage = parseInt(document.getElementById('voltage').value);
-        payload.Current = parseInt(document.getElementById('current').value);
+        const converterStatus = document.getElementById('converterStatus');
+        const voltage = document.getElementById('voltage');
+        const current = document.getElementById('current');
+        if (!converterStatus || !voltage || !current) {
+          showToast('Some fields are missing');
+          modal.style.display = 'none';
+          return;
+        }
+        payload.Status = converterStatus.value;
+        payload.Voltage = parseInt(voltage.value);
+        payload.Current = parseInt(current.value);
       } else {
-        payload.Status = document.getElementById('relayStatus').value;
+        const relayStatus = document.getElementById('relayStatus');
+        if (!relayStatus) {
+          showToast('Some fields are missing');
+          modal.style.display = 'none';
+          return;
+        }
+        payload.Status = relayStatus.value;
       }
       const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
         (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
@@ -601,7 +632,7 @@
           payload: payload
         }
       ];
-      ws.send(JSON.stringify(message));
+      wsConnections[currentCP].send(JSON.stringify(message));
       detail.scrollTop = detail.scrollHeight;
       modal.style.display = 'none';
     });
@@ -711,7 +742,7 @@
         if(atBottom) detail.scrollTop=detail.scrollHeight;
       }
     }
-    function categorize(raw){
+    function categorize(raw, cp){
       let o;
       try{ o=JSON.parse(raw); }catch{return;}
       if(!Array.isArray(o)) return;
@@ -720,22 +751,24 @@
         const cmd=o[2];
         if(cmd==='Heartbeat') return;
         // Update charger status for StatusNotification
-        if(cmd === 'StatusNotification' && o[3] && o[3].status) {
+        if(cmd === 'StatusNotification' && o[3] && o[3].status && cp === currentCP) {
           chargerStatus = o[3].status;
         }
-        requestCommands.add(cmd);
-        messages.call.push({command:cmd,raw,ts});
-        updateDropdown(callFilter,requestCommands);
-        setLatest(tblCall,descCall,raw,'call');
-        // Update toggleBtn based on transaction commands and show toast
-        if(cmd === 'StartTransaction' && toggleBtn.textContent === 'Start') {
-          toggleBtn.textContent = 'Stop';
-          showToast('HMI StartTransaction');
-        } else if(cmd === 'StopTransaction' && toggleBtn.textContent === 'Stop') {
-          toggleBtn.textContent = 'Start';
-          showToast('HMI StopTransaction');
+        if(cp === currentCP) {
+          requestCommands.add(cmd);
+          messages.call.push({command:cmd,raw,ts});
+          updateDropdown(callFilter,requestCommands);
+          setLatest(tblCall,descCall,raw,'call');
+          // Update toggleBtn based on transaction commands and show toast
+          if(cmd === 'StartTransaction' && toggleBtn.textContent === 'Start') {
+            toggleBtn.textContent = 'Stop';
+            showToast('StartTransaction completed');
+          } else if(cmd === 'StopTransaction' && toggleBtn.textContent === 'Stop') {
+            toggleBtn.textContent = 'Start';
+            showToast('StopTransaction completed');
+          }
         }
-      } else if(t0===3){
+      } else if(t0===3 && cp === currentCP){
         const p=o[2];
         if(p&&p.command){
           const cmd=p.command;
@@ -758,34 +791,52 @@
       if(arr.length) setLatest(tbl,desc,arr[arr.length-1].raw,type);
     }
     callFilter.addEventListener('change',()=>{
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
       updateTable('call');
     });
     resultFilter.addEventListener('change',()=>{
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
         showToast('No connection');
         return;
       }
       updateTable('result');
     });
-    function connect(){
-      appendLog(`Connecting to ${getWebSocketUrl()}`,'status');
-      ws=new WebSocket(getWebSocketUrl());
-      ws.onopen    =()=>appendLog('Connected','status');
-      ws.onmessage =ev=>{ appendLog(ev.data); categorize(ev.data); };
-      ws.onclose   =()=>{ appendLog('Connection closed; retrying in 3s…','status'); setTimeout(connect,3000); };
-      ws.onerror   =err=>{ console.error(err); appendLog('WebSocket error','status'); };
+    function connect(cp){
+      if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
+        return; // Already connected
+      }
+      appendLog(`Connecting to ${getWebSocketUrl(cp)}`,'status');
+      wsConnections[cp] = new WebSocket(getWebSocketUrl(cp));
+      wsConnections[cp].onopen = () => {
+        
+      };
+      wsConnections[cp].onmessage = (ev) => {
+        if (cp === currentCP) {
+          appendLog(ev.data);
+        }
+        categorize(ev.data, cp);
+      };
+      wsConnections[cp].onclose = () => {
+        appendLog(`Connection to ${cp} closed; retrying in 3s…`,'status');
+        wsConnections[cp] = null;
+        setTimeout(() => connect(cp), 3000);
+      };
+      wsConnections[cp].onerror = (err) => {
+        console.error(`WebSocket error for ${cp}:`, err);
+        appendLog(`WebSocket error for ${cp}`,'status');
+      };
     }
-    // initialize
-    currentCP = ''; // Set default charging point
+    // Initialize connections for all CPs
+    ['CP_01', 'CP_02', 'CP_03'].forEach(cp => connect(cp));
+    // Initialize UI
+    currentCP = '';
     updateActiveButton();
     updateTitle();
     updateDropdown(callFilter, requestCommands);
     updateDropdown(resultFilter, responseCommands);
-    connect();
   })();
   </script>
 </body>
