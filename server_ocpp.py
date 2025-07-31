@@ -183,7 +183,7 @@ async def handler(websocket, path=None):  # Remove default path
                         "status": "Accepted"}]
                     wss_text = json.dumps(wss_call)
                     await websocket.send(wss_text)
-                    print(f"[{ts}] ♥ Sent BootNotification CALL → {wss_text!r}")
+                    print(f"[{ts}] ☆ Sent BootNotification CALL → {wss_text!r}")
 
                 # If it was a StatusNotification, send "Accepted" and store unique_id
                 if action == "StatusNotification":
