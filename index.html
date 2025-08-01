@@ -507,7 +507,7 @@
       if (currentCP && wsConnections[currentCP]?.readyState === WebSocket.OPEN) {
         appendLog(`Charge for ${currentCP} no response`, 'status');
       }
-    }, 10000); // 10 seconds
+    }, 15000); // 15 seconds
   }
 
   window.switchCP = function(cp){
@@ -848,7 +848,7 @@
       categorize(ev.data, cp);
     };
     wsConnections[cp].onclose = () => {
-      appendLog(`Connection to ${cp} closed; retrying in 3s…`,'status');
+      
       wsConnections[cp] = null;
       if (cp === currentCP) {
         if (noResponseTimeout) {
