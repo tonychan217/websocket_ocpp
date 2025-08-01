@@ -240,6 +240,7 @@ async def handler(websocket, path=None):  # Remove default path
                             }
                         ]
                         wss_text = json.dumps(wss_call)
+                        await websocket.send(wss_text)
                         print(f"[{ts}] ✨ Sent {payload['command']} CALL → {wss_text!r}")
 
     except websockets.exceptions.ConnectionClosed:
