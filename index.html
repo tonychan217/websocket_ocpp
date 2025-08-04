@@ -26,6 +26,7 @@
       --modal-border: #e0e0e0;
       --input-bg: #f9f9f9;
       --input-border: #ccc;
+      --command-btn-hover: #d8d8d8; /* Slightly darker than #f0f0f0 */
     }
     :root.dark-mode {
       --bg-color: #1a1a1a;
@@ -47,6 +48,7 @@
       --modal-border: #444;
       --input-bg: #333;
       --input-border: #555;
+      --command-btn-hover: #2a2a2a; /* Slightly darker than #333 */
     }
     body {
       margin: 0;
@@ -213,41 +215,67 @@
       white-space:nowrap;
     }
     .table-footer {
-      display:flex; align-items:center; margin-bottom:1rem; gap:.5rem;
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      gap: .5rem;
+      width: 100%;
     }
-    .table-footer.response-footer { justify-content:flex-end; }
-    .button-group { display:flex; gap:.5rem; }
-    #toggleBtn, #getBtn {
-      background:var(--button-bg); color:var(--button-text);
-      border:none; padding:.4rem .8rem; border-radius:4px;
-      cursor:pointer; font-size:1rem;
+    .table-footer.response-footer {
+      justify-content: flex-end;
+    }
+    .button-group {
+      display: flex;
+      gap: .5rem;
+    }
+    .toggle-btn, #getBtn {
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      padding: .4rem .8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
     }
     #getConverterBtn, #setConverterBtn, #setRelayBtn,
     #getConnectorStatusBtn, #getEVInfoBtn {
-      background:var(--table-header-bg); color:#000;
-      border:1px solid var(--border-color);
-      padding:.4rem .8rem; border-radius:4px; cursor:pointer; font-size:1rem;
+      background: var(--table-header-bg);
+      color: #000;
+      border: 1px solid var(--border-color);
+      padding: .4rem .8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
     }
     :root.dark-mode #getConverterBtn,
     :root.dark-mode #setConverterBtn,
     :root.dark-mode #setRelayBtn,
     :root.dark-mode #getConnectorStatusBtn,
     :root.dark-mode #getEVInfoBtn {
-      color:#fff;
+      color: #fff;
     }
-    #toggleBtn:hover, #getBtn:hover,
-    .suffix-btn:hover {
-      background:#3ca3f7;
-    }
-    .suffix-btn.active:hover {
-      background: #0056b3;
+    .toggle-btn:hover, #getBtn:hover, .suffix-btn:hover {
+      background: #3ca3f7;
     }
     #getConverterBtn:hover, #setConverterBtn:hover,
     #setRelayBtn:hover, #getConnectorStatusBtn:hover,
     #getEVInfoBtn:hover {
-      background:#c0c0c0;
+      background: var(--command-btn-hover);
     }
-    #toggleBtn { margin-left:auto; }
+    .suffix-btn.active:hover {
+      background: #0056b3;
+    }
+    .toggle-btn {
+      margin-left: auto;
+    }
+    #toggleButtons {
+      display: flex;
+      justify-content: flex-end;
+      flex-grow: 1;
+    }
+    .hidden {
+      display: none;
+    }
     /* Modal styles */
     .modal {
       display: none;
@@ -394,7 +422,11 @@
             <button id="getConnectorStatusBtn">GetConnectorStatus</button>
             <button id="getEVInfoBtn">GetEVInfo</button>
           </div>
-          <button id="toggleBtn">Start</button>
+          <div id="toggleButtons">
+            <button id="toggleBtnCP_01" class="toggle-btn" data-cp="CP_01">Start</button>
+            <button id="toggleBtnCP_02" class="toggle-btn hidden" data-cp="CP_02">Start</button>
+            <button id="toggleBtnCP_03" class="toggle-btn hidden" data-cp="CP_03">Start</button>
+          </div>
         </div>
         <div class="subheader">Response</div>
         <div class="filter">
@@ -431,10 +463,11 @@
 <script>
 (function(){
   const host = location.hostname || "localhost", port = 2409;
-  let currentCP = ''; // Default to CP_01
-  let chargerStatus = ''; // Track the latest charger status
-  let lastMessageTime = null; // Track last message time for type 2 or 3
-  let noResponseTimeout = null; // Timeout for no response check
+  let currentCP = ''; // No default CP
+  let chargerStatus = { 'CP_01': '', 'CP_02': '', 'CP_03': '' }; // Track charger status per CP
+  let toggleStates = { 'CP_01': 'Start', 'CP_02': 'Start', 'CP_03': 'Start' }; // Track toggle button state per CP
+  let lastMessageTime = { 'CP_01': null, 'CP_02': null, 'CP_03': null }; // Track last message time per CP
+  let noResponseTimeout = { 'CP_01': null, 'CP_02': null, 'CP_03': null }; // Timeout per CP
   const wsConnections = { // Track WebSocket connections for all CPs
     'CP_01': null,
     'CP_02': null,
@@ -445,7 +478,6 @@
         descCall      = document.querySelector('#call-desc tbody'),
         tblResult     = document.querySelector('#result-table tbody'),
         descResult    = document.querySelector('#result-desc tbody'),
-        toggleBtn     = document.getElementById('toggleBtn'),
         getBtn        = document.getElementById('getBtn'),
         getConverterBtn       = document.getElementById('getConverterBtn'),
         setConverterBtn       = document.getElementById('setConverterBtn'),
@@ -464,7 +496,10 @@
         modalTitle    = document.getElementById('modalTitle'),
         modalBody     = document.getElementById('modalBody'),
         modalCancel   = document.getElementById('modalCancel'),
-        modalSubmit   = document.getElementById('modalSubmit');
+        modalSubmit   = document.getElementById('modalSubmit'),
+        toggleBtnCP_01 = document.getElementById('toggleBtnCP_01'),
+        toggleBtnCP_02 = document.getElementById('toggleBtnCP_02'),
+        toggleBtnCP_03 = document.getElementById('toggleBtnCP_03');
 
   let requestCommands  = new Set(['all']),
       responseCommands = new Set(['all']),
@@ -492,20 +527,25 @@
     cp03Btn.classList.toggle('active', currentCP==='CP_03');
   }
   function updateTitle(){
-    currentCPSpan.textContent = currentCP;
+    currentCPSpan.textContent = currentCP || 'None';
+  }
+  function updateToggleButtons(){
+    toggleBtnCP_01.classList.toggle('hidden', currentCP && currentCP !== 'CP_01');
+    toggleBtnCP_02.classList.toggle('hidden', currentCP !== 'CP_02');
+    toggleBtnCP_03.classList.toggle('hidden', currentCP !== 'CP_03');
   }
   function getWebSocketUrl(cp){
     return `ws://${host}:${port}/${cp}`;
   }
 
-  // Start or restart the no-response timeout
-  function startNoResponseTimeout() {
-    if (noResponseTimeout) {
-      clearTimeout(noResponseTimeout);
+  // Start or restart the no-response timeout for a specific CP
+  function startNoResponseTimeout(cp) {
+    if (noResponseTimeout[cp]) {
+      clearTimeout(noResponseTimeout[cp]);
     }
-    noResponseTimeout = setTimeout(() => {
-      if (currentCP && wsConnections[currentCP]?.readyState === WebSocket.OPEN) {
-        appendLog(`Charge for ${currentCP} no response`, 'status');
+    noResponseTimeout[cp] = setTimeout(() => {
+      if (wsConnections[cp]?.readyState === WebSocket.OPEN && cp === currentCP) {
+        appendLog(`Charge for ${cp} no response`, 'status');
       }
     }, 15000); // 15 seconds
   }
@@ -521,20 +561,19 @@
       }
     });
     // Close current WebSocket if open
-    if (wsConnections[currentCP] && wsConnections[currentCP].readyState === WebSocket.OPEN) {
+    if (currentCP && wsConnections[currentCP] && wsConnections[currentCP].readyState === WebSocket.OPEN) {
       wsConnections[currentCP].close();
       wsConnections[currentCP] = null;
     }
-    // Clear existing timeout
-    if (noResponseTimeout) {
-      clearTimeout(noResponseTimeout);
-      noResponseTimeout = null;
+    // Clear existing timeout for previous CP
+    if (currentCP && noResponseTimeout[currentCP]) {
+      clearTimeout(noResponseTimeout[currentCP]);
+      noResponseTimeout[currentCP] = null;
     }
     currentCP = cp;
-    chargerStatus = ''; // Reset charger status on CP switch
-    lastMessageTime = null; // Reset last message time
     updateActiveButton();
     updateTitle();
+    updateToggleButtons();
     log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${cp}…</span></div>`;
     requestCommands  = new Set(['all']);
     responseCommands = new Set(['all']);
@@ -552,21 +591,36 @@
     const isDark = document.documentElement.classList.toggle('dark-mode');
     modeToggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
   });
-  toggleBtn.addEventListener('click', ()=>{
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
-      return;
-    }
-    const action = toggleBtn.textContent==='Start'?'start':'stop';
-    if (action === 'start' && chargerStatus !== 'Preparing') {
-      showToast('Charger not ready');
-      return;
-    }
-    toggleBtn.textContent = action==='start'?'Stop':'Start';
-    wsConnections[currentCP].send(action);
-    detail.scrollTop = detail.scrollHeight;
+
+  // Add event listeners for toggle buttons
+  [toggleBtnCP_01, toggleBtnCP_02, toggleBtnCP_03].forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cp = btn.dataset.cp;
+      if (!currentCP) {
+        showToast('Please select CP in nav');
+        return;
+      }
+      if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+        showToast('No connection');
+        return;
+      }
+      const action = toggleStates[cp] === 'Start' ? 'start' : 'stop';
+      if (action === 'start' && chargerStatus[cp] !== 'Preparing') {
+        showToast('Charger not ready');
+        return;
+      }
+      toggleStates[cp] = action === 'start' ? 'Stop' : 'Start';
+      btn.textContent = toggleStates[cp];
+      wsConnections[cp].send(action);
+      detail.scrollTop = detail.scrollHeight;
+    });
   });
+
   getBtn.addEventListener('click', ()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -575,6 +629,10 @@
     detail.scrollTop = detail.scrollHeight;
   });
   getConverterBtn.addEventListener('click',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -583,6 +641,10 @@
     detail.scrollTop = detail.scrollHeight;
   });
   getConnectorStatusBtn.addEventListener('click',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -591,6 +653,10 @@
     detail.scrollTop = detail.scrollHeight;
   });
   getEVInfoBtn.addEventListener('click',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -599,6 +665,10 @@
     detail.scrollTop = detail.scrollHeight;
   });
   setConverterBtn.addEventListener('click', () => {
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -606,6 +676,10 @@
     showModal('setConverter');
   });
   setRelayBtn.addEventListener('click', () => {
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -613,6 +687,11 @@
     showModal('setRelay');
   });
   modalSubmit.addEventListener('click', () => {
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      modal.style.display = 'none';
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       modal.style.display = 'none';
@@ -769,28 +848,30 @@
     if(!Array.isArray(o)) return;
     const t0=o[0], ts=nowTs();
     if((t0===2 || t0===3) && cp === currentCP){
-      lastMessageTime = Date.now(); // Update last message time
-      startNoResponseTimeout(); // Reset the timeout
+      lastMessageTime[cp] = Date.now(); // Update last message time
+      startNoResponseTimeout(cp); // Reset the timeout
     }
     if(t0===2){
       const cmd=o[2];
       if(cmd==='Heartbeat') return;
       // Update charger status for StatusNotification
       if(cmd === 'StatusNotification' && o[3] && o[3].status && cp === currentCP) {
-        chargerStatus = o[3].status;
+        chargerStatus[cp] = o[3].status;
       }
       if(cp === currentCP) {
         requestCommands.add(cmd);
         messages.call.push({command:cmd,raw,ts});
         updateDropdown(callFilter,requestCommands);
         setLatest(tblCall,descCall,raw,'call');
-        // Update toggleBtn based on transaction commands and show toast
-        if(cmd === 'StartTransaction' && toggleBtn.textContent === 'Start') {
-          toggleBtn.textContent = 'Stop';
-          showToast('HMI StartTransaction');
-        } else if(cmd === 'StopTransaction' && toggleBtn.textContent === 'Stop') {
-          toggleBtn.textContent = 'Start';
-          showToast('HMI StopTransaction');
+        // Update toggle button based on transaction commands and show toast
+        if(cmd === 'StartTransaction' && toggleStates[cp] === 'Start') {
+          toggleStates[cp] = 'Stop';
+          document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
+          showToast(`HMI StartTransaction for ${cp}`);
+        } else if(cmd === 'StopTransaction' && toggleStates[cp] === 'Stop') {
+          toggleStates[cp] = 'Start';
+          document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+          showToast(`HMI StopTransaction for ${cp}`);
         }
       }
     } else if(t0===3 && cp === currentCP){
@@ -816,6 +897,10 @@
     if(arr.length) setLatest(tbl,desc,arr[arr.length-1].raw,type);
   }
   callFilter.addEventListener('change',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -823,6 +908,10 @@
     updateTable('call');
   });
   resultFilter.addEventListener('change',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
     if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
       showToast('No connection');
       return;
@@ -837,8 +926,8 @@
     wsConnections[cp] = new WebSocket(getWebSocketUrl(cp));
     wsConnections[cp].onopen = () => {
       if (cp === currentCP) {
-        lastMessageTime = Date.now(); // Initialize last message time
-        startNoResponseTimeout(); // Start timeout on connection
+        lastMessageTime[cp] = Date.now(); // Initialize last message time
+        startNoResponseTimeout(cp); // Start timeout on connection
       }
     };
     wsConnections[cp].onmessage = (ev) => {
@@ -848,12 +937,11 @@
       categorize(ev.data, cp);
     };
     wsConnections[cp].onclose = () => {
-      
       wsConnections[cp] = null;
       if (cp === currentCP) {
-        if (noResponseTimeout) {
-          clearTimeout(noResponseTimeout);
-          noResponseTimeout = null;
+        if (noResponseTimeout[cp]) {
+          clearTimeout(noResponseTimeout[cp]);
+          noResponseTimeout[cp] = null;
         }
         setTimeout(() => connect(cp), 3000);
       }
@@ -866,9 +954,9 @@
   // Initialize connections for all CPs
   ['CP_01', 'CP_02', 'CP_03'].forEach(cp => connect(cp));
   // Initialize UI
-  currentCP = '';
   updateActiveButton();
   updateTitle();
+  updateToggleButtons();
   updateDropdown(callFilter, requestCommands);
   updateDropdown(resultFilter, responseCommands);
 })();
