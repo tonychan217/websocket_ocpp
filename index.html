@@ -475,7 +475,7 @@
   <div class="container">
     <div class="content">
       <div id="log">
-        <div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting…</span></div>
+        <div class="entry status"><span class="ts">--:--:--</span><span class="msg">Please select CP in nav</span></div>
       </div>
       <div id="detail">
         <div class="subheader">
@@ -668,7 +668,7 @@
     updateActiveButton();
     updateTitle();
     updateToggleButtons();
-
+    
     // Update log display
     if (currentCP) {
       log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${currentCP}…</span></div>`;
@@ -1088,7 +1088,6 @@
     if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
       return;
     }
-    appendLog(`Connecting to ${getWebSocketUrl(cp)}`,'status');
     wsConnections[cp] = new WebSocket(getWebSocketUrl(cp));
     wsConnections[cp].onopen = () => {
       lastMessageTime[cp] = Date.now();
