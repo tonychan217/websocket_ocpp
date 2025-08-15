@@ -252,7 +252,8 @@
       cursor: pointer;
       font-size: 1rem;
     }
-    #getConverterBtn, #setConverterBtn, #setRelayBtn,
+    #getConverterBtn, #setConverterBtn, #setRelayBtn, 
+    #setHMIBtn, #getRelayBtn, #getMeterBtn, #getTemperatureBtn,
     #getConnectorStatusBtn, #getEVInfoBtn {
       background: var(--table-header-bg);
       color: #000;
@@ -263,8 +264,12 @@
       font-size: 1rem;
     }
     :root.dark-mode #getConverterBtn,
+    :root.dark-mode #getRelayBtn,
+    :root.dark-mode #getMeterBtn,
+    :root.dark-mode #getTemperatureBtn,
     :root.dark-mode #setConverterBtn,
     :root.dark-mode #setRelayBtn,
+    :root.dark-mode #setHMIBtn,
     :root.dark-mode #getConnectorStatusBtn,
     :root.dark-mode #getEVInfoBtn {
       color: #fff;
@@ -281,7 +286,8 @@
     .toggle-btn:hover, #getBtn:hover, .suffix-btn:hover {
       background: #3ca3f7;
     }
-    #getConverterBtn:hover, #setConverterBtn:hover,
+    #getConverterBtn:hover, #setConverterBtn:hover, #setRelayBtn:hover, 
+    #setHMIBtn:hover, #getRelayBtn:hover, #getMeterBtn:hover, #getTemperatureBtn:hover,
     #setRelayBtn:hover, #getConnectorStatusBtn:hover,
     #getEVInfoBtn:hover {
       background: var(--command-btn-hover);
@@ -499,11 +505,9 @@
         </table>
         <div class="table-footer">
           <div class="button-group">
-            <button id="getConverterBtn">GetConverter</button>
             <button id="setConverterBtn">SetConverter</button>
             <button id="setRelayBtn">SetRelay</button>
-            <button id="getConnectorStatusBtn">GetConnectorStatus</button>
-            <button id="getEVInfoBtn">GetEVInfo</button>
+            <button id="setHMIBtn">SetHMI</button>
           </div>
           <div id="toggleButtons">
             <button id="toggleBtnCP_01" class="toggle-btn" data-cp="CP_01">Start</button>
@@ -523,8 +527,18 @@
           <thead><tr><th>Name</th><th>Value</th></tr></thead>
           <tbody></tbody>
         </table>
-        <div class="table-footer response-footer">
-          <button id="getBtn">Get</button>
+        <div class="table-footer">
+          <div class="button-group">
+            <button id="getConverterBtn">GetConverter</button>
+            <button id="getRelayBtn">GetRelay</button>
+            <button id="getConnectorStatusBtn">GetConnectorStatus</button>
+            <button id="getEVInfoBtn">GetEVInfo</button>
+            <button id="getMeterBtn">GetMeter</button>
+            <button id="getTemperatureBtn">GetTemperature</button>
+          </div>
+          <div class="table-footer response-footer">
+            <button id="getBtn">Get</button>
+          </div>
         </div>
       </div>
     </div>
@@ -554,17 +568,27 @@
     'CP_02': null,
     'CP_03': null
   };
+  // Store last settings for each command and CP
+  const lastSettings = {
+    'CP_01': { setConverter: null, setRelay: null, setHMI: null },
+    'CP_02': { setConverter: null, setRelay: null, setHMI: null },
+    'CP_03': { setConverter: null, setRelay: null, setHMI: null }
+  };
   const log           = document.getElementById('log'),
         tblCall       = document.querySelector('#call-table tbody'),
         descCall      = document.querySelector('#call-desc tbody'),
         tblResult     = document.querySelector('#result-table tbody'),
         descResult    = document.querySelector('#result-desc tbody'),
         getBtn        = document.getElementById('getBtn'),
-        getConverterBtn       = document.getElementById('getConverterBtn'),
         setConverterBtn       = document.getElementById('setConverterBtn'),
         setRelayBtn           = document.getElementById('setRelayBtn'),
+        setHMIBtn             = document.getElementById('setHMIBtn'),
+        getConverterBtn       = document.getElementById('getConverterBtn'),
         getConnectorStatusBtn = document.getElementById('getConnectorStatusBtn'),
         getEVInfoBtn          = document.getElementById('getEVInfoBtn'),
+        getRelayBtn           = document.getElementById('getRelayBtn'),
+        getMeterBtn           = document.getElementById('getMeterBtn'),
+        getTemperatureBtn     = document.getElementById('getTemperatureBtn'),
         modeToggleBtn = document.getElementById('modeToggleBtn'),
         callFilter    = document.getElementById('callFilter'),
         resultFilter  = document.getElementById('resultFilter'),
@@ -636,22 +660,25 @@
       clearTimeout(noResponseTimeout[cp]);
     }
     noResponseTimeout[cp] = setTimeout(() => {
-      if (wsConnections[cp]?.readyState === WebSocket.OPEN && cp === currentCP) {
-        appendLog(`Charge for ${cp} no response`, 'status');
+      if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
+        const now = Date.now();
+        if (!lastMessageTime[cp] || (now - lastMessageTime[cp] >= 15000)) {
+          if (!currentCP || cp === currentCP) {
+            appendLog(`Charge for ${cp} no response`, 'status');
+          }
+        }
+        startNoResponseTimeout(cp);
       }
     }, 15000);
   }
 
   window.switchCP = function(cp){
-    // If the clicked CP is already selected, release it by setting currentCP to ''
     if (cp === currentCP) {
       currentCP = '';
     } else {
-      // Otherwise, switch to the clicked CP
       currentCP = cp;
     }
 
-    // Close WebSocket connections for non-selected CPs
     const otherCPs = ['CP_01', 'CP_02', 'CP_03'].filter(otherCP => otherCP !== currentCP);
     otherCPs.forEach(otherCP => {
       if (wsConnections[otherCP] && wsConnections[otherCP].readyState === WebSocket.OPEN) {
@@ -664,12 +691,10 @@
       }
     });
 
-    // Update UI
     updateActiveButton();
     updateTitle();
     updateToggleButtons();
     
-    // Update log display
     if (currentCP) {
       log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${currentCP}…</span></div>`;
       connect(currentCP);
@@ -678,7 +703,6 @@
       ['CP_01', 'CP_02', 'CP_03'].forEach(cp => connect(cp));
     }
 
-    // Update dropdowns and tables
     requestCommands = new Set(['all']);
     responseCommands = new Set(['all']);
     ['CP_01', 'CP_02', 'CP_03'].forEach(cp => {
@@ -790,6 +814,45 @@
     detail.scrollTop = detail.scrollHeight;
   });
 
+  getRelayBtn.addEventListener('click',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
+    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
+      showToast('No connection');
+      return;
+    }
+    wsConnections[currentCP].send('getRelay');
+    detail.scrollTop = detail.scrollHeight;
+  });
+
+  getMeterBtn.addEventListener('click',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
+    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
+      showToast('No connection');
+      return;
+    }
+    wsConnections[currentCP].send('getMeter');
+    detail.scrollTop = detail.scrollHeight;
+  });
+
+  getTemperatureBtn.addEventListener('click',()=>{
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
+    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
+      showToast('No connection');
+      return;
+    }
+    wsConnections[currentCP].send('getTemperature');
+    detail.scrollTop = detail.scrollHeight;
+  });
+
   setConverterBtn.addEventListener('click', () => {
     if (!currentCP) {
       showToast('Please select CP in nav');
@@ -814,6 +877,18 @@
     showModal('setRelay');
   });
 
+  setHMIBtn.addEventListener('click', () => {
+    if (!currentCP) {
+      showToast('Please select CP in nav');
+      return;
+    }
+    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
+      showToast('No connection');
+      return;
+    }
+    showModal('setHMI');
+  });
+
   modalSubmit.addEventListener('click', () => {
     if (!currentCP) {
       showToast('Please select CP in nav');
@@ -825,7 +900,9 @@
       modal.style.display = 'none';
       return;
     }
-    let command = modalTitle.textContent === 'Set Converter' ? 'setConverter' : 'setRelay';
+    let command = modalTitle.textContent === 'Set Converter' ? 'setConverter' : 
+                  modalTitle.textContent === 'Set Relay' ? 'setRelay' : 
+                  'setHMI';
     let payload = { ChargerID: currentCP };
     if (command === 'setConverter') {
       const converterStatus = document.getElementById('converterStatus');
@@ -839,7 +916,13 @@
       payload.Status = converterStatus.checked ? 'On' : 'Off';
       payload.Voltage = parseInt(voltage.value);
       payload.Current = parseInt(current.value);
-    } else {
+      // Save settings
+      lastSettings[currentCP].setConverter = {
+        Status: payload.Status,
+        Voltage: payload.Voltage,
+        Current: payload.Current
+      };
+    } else if (command === 'setRelay') {
       const relayStatus = document.getElementById('relayStatus');
       if (!relayStatus) {
         showToast('Some fields are missing');
@@ -847,6 +930,22 @@
         return;
       }
       payload.Status = relayStatus.checked ? 'On' : 'Off';
+      // Save settings
+      lastSettings[currentCP].setRelay = {
+        Status: payload.Status
+      };
+    } else if (command === 'setHMI') {
+      const HMIStatus = document.getElementById('HMIStatus');
+      if (!HMIStatus || HMIStatus.value === '') {
+        showToast('Please select one status');
+        modal.style.display = 'none';
+        return;
+      }
+      payload.Status = HMIStatus.value;
+      // Save settings
+      lastSettings[currentCP].setHMI = {
+        Status: payload.Status
+      };
     }
     const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
       (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
@@ -856,8 +955,14 @@
       uniqueId,
       "DataTransfer",
       {
-        command: command === 'setConverter' ? 'SetConverter' : 'SetRelay',
-        payload: payload
+        "vendorId": "Totex",
+        "messageId": 1,
+        "data": {
+          command: command === 'setConverter' ? 'SetConverter' : 
+                   command === 'setRelay' ? 'SetRelay' : 
+                   'SetHMI',
+          payload: payload
+        }
       }
     ];
     wsConnections[currentCP].send(JSON.stringify(message));
@@ -870,36 +975,55 @@
   });
 
   function showModal(command) {
-    modalTitle.textContent = command === 'setConverter' ? 'Set Converter' : 'Set Relay';
+    modalTitle.textContent = command === 'setConverter' ? 'Set Converter' : 
+                            command === 'setRelay' ? 'Set Relay' : 
+                            'Set HMI';
     modalBody.innerHTML = '';
+    const settings = lastSettings[currentCP][command];
     if (command === 'setConverter') {
+      const status = settings?.Status === 'On' ? 'checked' : '';
+      const voltage = settings?.Voltage ?? 423;
+      const current = settings?.Current ?? 10;
       modalBody.innerHTML = `
         <div class="switch-container">
           <label for="converterStatus">Status:</label>
           <label class="switch">
-            <input type="checkbox" id="converterStatus">
+            <input type="checkbox" id="converterStatus" ${status}>
             <span class="slider"></span>
           </label>
-          <span>${document.getElementById('converterStatus')?.checked ? 'On' : 'Off'}</span>
+          <span>${status ? 'On' : 'Off'}</span>
         </div>
         <label for="voltage">Voltage (V):</label>
-        <input type="number" id="voltage" value="0" min="0" step="1">
+        <input type="number" id="voltage" value="${voltage}" min="0" step="1">
         <label for="current">Current (A):</label>
-        <input type="number" id="current" value="0" min="0" step="1">
+        <input type="number" id="current" value="${current}" min="0" step="1">
       `;
-    } else {
+    } else if (command === 'setRelay') {
+      const status = settings?.Status === 'On' ? 'checked' : '';
       modalBody.innerHTML = `
         <div class="switch-container">
           <label for="relayStatus">Status:</label>
           <label class="switch">
-            <input type="checkbox" id="relayStatus">
+            <input type="checkbox" id="relayStatus" ${status}>
             <span class="slider"></span>
           </label>
-          <span>${document.getElementById('relayStatus')?.checked ? 'On' : 'Off'}</span>
+          <span>${status ? 'On' : 'Off'}</span>
         </div>
       `;
+    } else if (command === 'setHMI') {
+      const status = settings?.Status ?? '';
+      modalBody.innerHTML = `
+        <label for="HMIStatus">Status:</label>
+        <select id="HMIStatus">
+          <option value="" ${!status ? 'selected' : ''}>Select Status</option>
+          <option value="Rapid" ${status === 'Rapid' ? 'selected' : ''}>Rapid</option>
+          <option value="Fast" ${status === 'Fast' ? 'selected' : ''}>Fast</option>
+          <option value="Available" ${status === 'Available' ? 'selected' : ''}>Available</option>
+          <option value="Engage" ${status === 'Engage' ? 'selected' : ''}>Engage</option>
+          <option value="Off" ${status === 'Off' ? 'selected' : ''}>Off</option>
+        </select>
+      `;
     }
-    // Update switch label dynamically
     const statusSwitch = modalBody.querySelector('#converterStatus, #relayStatus');
     if (statusSwitch) {
       statusSwitch.addEventListener('change', () => {
@@ -938,12 +1062,26 @@
     dropdown.value = cmds.has(sel)?sel:'all';
   }
 
+  function flattenObject(obj, parent = '', res = {}) {
+    for (let key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        if (key === 'ChargerID') continue;
+        const propName = parent ? `${parent}.${key}` : key;
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          flattenObject(obj[key], propName, res);
+        } else {
+          res[propName] = obj[key];
+        }
+      }
+    }
+    return res;
+  }
+
   function setLatest(tbl,desc,raw,cp,type,currentCP){
     const atBottom = detail.scrollHeight-detail.clientHeight<=detail.scrollTop+1;
     const filter = type==='call'?callFilter.value:resultFilter.value;
     if(filter==='all' || messagesByCP[cp][type].slice(-1)[0].command===filter){
       tbl.innerHTML=''; desc.innerHTML='';
-      // Create Timestamp row
       const row1 = document.createElement('tr'),
             td1_label = document.createElement('td'),
             td1_value = document.createElement('td');
@@ -953,7 +1091,6 @@
       
       let rowCount = 2;
       if (!currentCP) {
-        // Include Source row when no CP is selected
         rowCount = 3;
         const row2 = document.createElement('tr'),
               td2_label = document.createElement('td'),
@@ -966,7 +1103,6 @@
         tbl.append(row1);
       }
       
-      // Create Raw JSON row
       const rowJson = document.createElement('tr'),
             tdJson_label = document.createElement('td'),
             tdJson_value = document.createElement('td');
@@ -988,16 +1124,34 @@
         return;
       }
       if(Array.isArray(o)){
-        o.forEach((v,i)=>{
-          const r=document.createElement('tr'),
-                n=document.createElement('td'),
-                v2=document.createElement('td');
-          n.textContent=`Index ${i}`;
-          v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
-          r.append(n,v2); desc.appendChild(r);
-        });
+        if (o[0] === 2 || o[0] === 3) {
+          if (type === 'call' && o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.payload) {
+            const flattenedPayload = flattenObject(o[3].data.payload);
+            Object.entries(flattenedPayload).forEach(([k, v]) => {
+              const r = document.createElement('tr'),
+                    n = document.createElement('td'),
+                    v2 = document.createElement('td');
+              n.textContent = k;
+              v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+              r.append(n, v2);
+              desc.appendChild(r);
+            });
+          } else if (type === 'result' && o[2] && typeof o[2] === 'object' && o[2].data && o[2].data.payload) {
+            const flattenedPayload = flattenObject(o[2].data.payload);
+            Object.entries(flattenedPayload).forEach(([k, v]) => {
+              const r = document.createElement('tr'),
+                    n = document.createElement('td'),
+                    v2 = document.createElement('td');
+              n.textContent = k;
+              v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+              r.append(n, v2);
+              desc.appendChild(r);
+            });
+          }
+        }
       } else if(o&&typeof o==='object'){
-        Object.entries(o).forEach(([k,v])=>{
+        const flattenedObj = flattenObject(o);
+        Object.entries(flattenedObj).forEach(([k,v])=>{
           const r=document.createElement('tr'),
                 n=document.createElement('td'),
                 v2=document.createElement('td');
@@ -1026,7 +1180,11 @@
       startNoResponseTimeout(cp);
     }
     if(t0===2){
-      const cmd=o[2];
+      const action=o[2];
+      let cmd = action;
+      if (o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.command) {
+        cmd = o[3].data.command;
+      }
       if(cmd==='Heartbeat') return;
       if(cmd === 'StatusNotification' && o[3] && o[3].status) {
         chargerStatus[cp] = o[3].status;
@@ -1037,8 +1195,16 @@
       setLatest(tblCall,descCall,raw,cp,'call',currentCP);
     } else if(t0===3){
       const p=o[2];
-      if(p&&p.command){
-        const cmd=p.command;
+      let cmd = null;
+      if(p && typeof p === 'object' && p.command) {
+        cmd = p.command;
+      } else if (p && typeof p === 'object' && p.data && p.data.command) {
+        cmd = p.data.command;
+      }
+      if (!cmd && o[2] && typeof o[2] === 'string') {
+        cmd = o[2];
+      }
+      if (cmd) {
         responseCommands.add(cmd);
         messagesByCP[cp].result = [{command:cmd,raw,ts}];
         updateDropdown(resultFilter,responseCommands);
@@ -1094,7 +1260,7 @@
       startNoResponseTimeout(cp);
     };
     wsConnections[cp].onmessage = (ev) => {
-      if (cp === currentCP) {
+      if (!currentCP || cp === currentCP) {
         appendLog(ev.data);
       }
       categorize(ev.data, cp);
@@ -1109,7 +1275,9 @@
     };
     wsConnections[cp].onerror = (err) => {
       console.error(`WebSocket error for ${cp}:`, err);
-      appendLog(`WebSocket error for ${cp}`,'status');
+      if (!currentCP || cp === currentCP) {
+        appendLog(`WebSocket error for ${cp}`, 'status');
+      }
     };
   }
 
