@@ -1170,7 +1170,7 @@
     }
   }
 
-  function categorize(raw, cp){
+function categorize(raw, cp){
     let o;
     try{ o=JSON.parse(raw); }catch{return;}
     if(!Array.isArray(o)) return;
@@ -1189,10 +1189,12 @@
       if(cmd === 'StatusNotification' && o[3] && o[3].status) {
         chargerStatus[cp] = o[3].status;
       }
-      requestCommands.add(cmd);
-      messagesByCP[cp].call = [{command:cmd,raw,ts}];
-      updateDropdown(callFilter,requestCommands);
-      setLatest(tblCall,descCall,raw,cp,'call',currentCP);
+      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+        requestCommands.add(cmd);
+        messagesByCP[cp].call = [{command:cmd,raw,ts}];
+        updateDropdown(callFilter,requestCommands);
+        setLatest(tblCall,descCall,raw,cp,'call',currentCP);
+      }
     } else if(t0===3){
       const p=o[2];
       let cmd = null;
@@ -1204,7 +1206,7 @@
       if (!cmd && o[2] && typeof o[2] === 'string') {
         cmd = o[2];
       }
-      if (cmd) {
+      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
         responseCommands.add(cmd);
         messagesByCP[cp].result = [{command:cmd,raw,ts}];
         updateDropdown(resultFilter,responseCommands);
