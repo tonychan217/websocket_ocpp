@@ -84,27 +84,14 @@ async def handler(websocket, path=None):  # Remove default path
                 # Skip all other logic for this raw message
                 continue
 
-            if cmd in ("getConverter", "setConverter", "setRelay", "getConnectorStatus", "getEVInfo"):
+            if cmd in ("getConverter", "getConnectorStatus", "getEVInfo", "getRelay", "getMeter", "getTemperature"):
                 ws_unique_id = uuid.uuid4().hex
                 if cmd == "getConverter":
                     action = "GetConverter"
                     payload = {
                         "ChargerID": actual_path.lstrip('/')
                     }
-                elif cmd == "setConverter":
-                    action = "SetConverter"
-                    payload = {
-                        "ChargerID": actual_path.lstrip('/'),
-                        "Status": "On",
-                        "Voltage": 450,
-                        "Current": 28
-                    }
-                elif cmd == "setRelay":
-                    action = "SetRelay"
-                    payload = {
-                        "ChargerID": actual_path.lstrip('/'),
-                        "Status": "On"
-                    }
+           
                 elif cmd == "getConnectorStatus":
                     action = "GetConnectorStatus"
                     payload = {
@@ -116,13 +103,32 @@ async def handler(websocket, path=None):  # Remove default path
                         "ChargerID": actual_path.lstrip('/')
                     }
 
+                elif cmd == "getRelay":
+                    action = "GetRelay"
+                    payload = {
+                        "ChargerID": actual_path.lstrip('/')
+                    }
+                    
+                elif cmd == "getMeter":
+                    action = "GetMeter"
+                    payload = {
+                        "ChargerID": actual_path.lstrip('/')
+                    }
+
+                elif cmd == "getTemperature":
+                    action = "GetTemperature"
+                    payload = {
+                        "ChargerID": actual_path.lstrip('/')
+                    }
+
                 call_msg = [
                     2,
                     ws_unique_id,
                     "DataTransfer",
                     {
-                        "command": action,
-                        "payload": payload
+                        "vendorId": "Totex",
+                        "messageId": 1,
+                        "data": {"command": action, "payload": payload}
                     }
                 ]
                 text = json.dumps(call_msg)
@@ -136,7 +142,7 @@ async def handler(websocket, path=None):  # Remove default path
                             dead.add(ws)
                 for ws in dead:
                     connected.discard(ws)
-                print(f"[{current_time()}] ✨ Sent {call_msg[2]} CALL → {text!r}")
+                print(f"[{current_time()}] ✨ Sent {action} CALL → {text!r}")
                 # Skip all other logic for this raw message
                 continue
 
@@ -230,18 +236,33 @@ async def handler(websocket, path=None):  # Remove default path
                     await websocket.send(wss_text)
                     print(f"[{ts}] Σ Sent MeterValues RES → {wss_text!r}")
 
-                # If it was a DataTransfer for SetConverter or SetRelay, send response
-                if action == "DataTransfer" and isinstance(payload, dict) and "command" in payload:
-                    if payload["command"] in ["SetConverter", "SetRelay"]:
-                        wss_call = [2, unique_id, "DataTransfer",
-                        {
-                                "command": payload["command"],
-                                "payload": payload.get("payload", {})
+                if action == "DataTransfer" and isinstance(payload, dict) and "data" in payload:
+                    data = payload["data"]
+                    # Check if data is a string (needs parsing) or already a dict
+                    if isinstance(data, str):
+                        try:
+                            data = json.loads(data)
+                        except json.JSONDecodeError:
+                            print(f"[{ts}] ⚠️ Invalid DataTransfer data JSON, skipping")
+                            continue
+                    # Now data should be a dict
+                    if isinstance(data, dict) and data.get("command") in ["SetConverter", "SetRelay", "SetHMI"]:
+                        wss_call = [
+                            2,  # Changed to CALL to match client expectation
+                            unique_id,
+                            "DataTransfer",
+                            {
+                                "vendorId": "Totex",
+                                "messageId": 1,
+                                "data": {
+                                    "command": data["command"],
+                                    "payload": data.get("payload", {})
+                                }
                             }
                         ]
                         wss_text = json.dumps(wss_call)
                         await websocket.send(wss_text)
-                        print(f"[{ts}] ✨ Sent {payload['command']} CALL → {wss_text!r}")
+                        print(f"[{ts}] ✨ Sent {data['command']} CALL → {wss_text!r}")
 
     except websockets.exceptions.ConnectionClosed:
         pass
