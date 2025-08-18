@@ -33,6 +33,11 @@
       --switch-bg-on: #28a745;
       --switch-handle: #fff;
       --switch-shadow: rgba(0,0,0,0.2);
+      --status-connected: #28a745;
+      --status-disconnected: #dc3545;
+      --request-nav-bg: #fff;
+      --disabled-btn-bg: #cccccc;
+      --disabled-btn-text: #666666;
     }
     :root.dark-mode {
       --bg-color: #1a1a1a;
@@ -61,6 +66,11 @@
       --switch-bg-on: #28a745;
       --switch-handle: #ddd;
       --switch-shadow: rgba(0,0,0,0.4);
+      --status-connected: #28a745;
+      --status-disconnected: #c82333;
+      --request-nav-bg: #333;
+      --disabled-btn-bg: #555555;
+      --disabled-btn-text: #999999;
     }
     body {
       margin: 0;
@@ -158,76 +168,125 @@
       overflow: hidden;
       margin: 1rem;
     }
+    .cp-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .cp-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+    .cp-section:last-child {
+      border-right: none;
+    }
     .content {
       flex: 1;
       display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
-    #log, #detail {
-      flex: 1;
+    .detail, .log {
       padding: 1rem;
       overflow-y: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
-    #log::-webkit-scrollbar, #detail::-webkit-scrollbar { display: none; }
-    #log:hover, #detail:hover { scrollbar-width: thin; -ms-overflow-style: auto; }
-    #log:hover::-webkit-scrollbar, #detail:hover::-webkit-scrollbar {
-      display: block; width:8px;
+    .detail::-webkit-scrollbar, .log::-webkit-scrollbar { display: none; }
+    .detail:hover, .log:hover { scrollbar-width: thin; -ms-overflow-style: auto; }
+    .detail:hover::-webkit-scrollbar, .log:hover::-webkit-scrollbar {
+      display: block; width: 8px;
     }
-    #log:hover::-webkit-scrollbar-track, #detail:hover::-webkit-scrollbar-track {
+    .detail:hover::-webkit-scrollbar-track, .log:hover::-webkit-scrollbar-track {
       background: var(--border-color);
     }
-    #log:hover::-webkit-scrollbar-thumb, #detail:hover::-webkit-scrollbar-thumb {
-      background: var(--header-bg); border-radius:4px;
+    .detail:hover::-webkit-scrollbar-thumb, .log:hover::-webkit-scrollbar-thumb {
+      background: var(--header-bg); border-radius: 4px;
     }
-    #log { overflow-x: hidden; }
-    #detail { border-left:1px solid var(--border-color); background:var(--detail-bg); }
+    .log {
+      overflow-x: hidden;
+      flex: 1;
+      border-top: 1px solid var(--border-color);
+      background: var(--detail-bg);
+    }
+    .detail {
+      flex: 2;
+      background: var(--detail-bg);
+    }
     .entry {
       margin-bottom: .5rem;
       font-family: monospace;
       line-height: 1.4;
-      display:flex; align-items:flex-start; width:100%;
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
     }
     .entry .ts {
       color: var(--timestamp-color);
       font-size: .85em;
-      width:150px; flex-shrink:0; white-space:nowrap;
+      width: 150px;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     .entry .msg {
-      flex:1; overflow-wrap:break-word; max-width:calc(100% - 150px);
+      flex: 1;
+      overflow-wrap: break-word;
+      max-width: calc(100% - 150px);
     }
     .entry.status {
-      font-style:italic; color:var(--status-color);
+      font-style: italic;
+      color: var(--status-color);
     }
     .subheader {
-      font-weight:bold; margin:1rem 0 .5rem; font-size:1.2rem;
+      font-weight: bold;
+      margin: 1rem 0 .5rem;
+      font-size: 1.2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
+    .subheader .button-group {
+      display: flex;
+      gap: 0.5rem;
+    }
     .filter {
-      margin-bottom:.5rem;
+      margin-bottom: .5rem;
     }
     .filter label {
-      margin-right:1rem; font-size:1rem;
+      margin-right: 1rem;
+      font-size: 1rem;
     }
     .filter select {
-      padding:.4rem; border-radius:4px; border:1px solid var(--border-color);
-      background:var(--container-bg); color:var(--text-color); font-size:.9rem;
+      padding: .4rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--container-bg);
+      color: var(--text-color);
+      font-size: .9rem;
     }
     table {
-      width:100%; border-collapse:collapse; margin:.5rem 0;
-      font-family:monospace; font-size:.9rem;
+      width: 100%;
+      border-collapse: collapse;
+      margin: .5rem 0;
+      font-family: monospace;
+      font-size: .9rem;
     }
     th, td {
-      padding:.5rem; border:1px solid var(--border-color);
-      text-align:left; word-break:break-all;
+      padding: .5rem;
+      border: 1px solid var(--border-color);
+      text-align: left;
+      word-break: break-all;
     }
-    th { background:var(--table-header-bg); }
-    #call-table td:first-child, #result-table td:first-child,
-    #call-desc td:first-child, #result-desc td:first-child {
-      white-space:nowrap;
+    th {
+      background: var(--table-header-bg);
+    }
+    .call-table th,
+    .call-desc th,
+    .result-desc th {
+      white-space: nowrap;
     }
     .table-footer {
       display: flex;
@@ -236,14 +295,33 @@
       gap: .5rem;
       width: 100%;
     }
+    .table-footer.request-footer {
+      justify-content: flex-start;
+    }
     .table-footer.response-footer {
-      justify-content: flex-end;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
     }
     .button-group {
       display: flex;
-      gap: .5rem;
+      gap: 0.5rem;
     }
-    .toggle-btn, #getBtn {
+    .button-group.column {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .button-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .toggle-container {
+      margin-left: auto;
+    }
+    .toggle-btn,
+    .get-btn {
       background: var(--button-bg);
       color: var(--button-text);
       border: none;
@@ -252,27 +330,22 @@
       cursor: pointer;
       font-size: 1rem;
     }
-    #getConverterBtn, #setConverterBtn, #setRelayBtn, 
-    #setHMIBtn, #getRelayBtn, #getMeterBtn, #getTemperatureBtn,
-    #getConnectorStatusBtn, #getEVInfoBtn {
+    .get-converter-btn,
+    .set-converter-btn,
+    .set-relay-btn,
+    .set-hmi-btn,
+    .get-relay-btn,
+    .get-meter-btn,
+    .get-temperature-btn,
+    .get-connector-status-btn,
+    .get-ev-info-btn {
       background: var(--table-header-bg);
-      color: #000;
+      color: var(--text-color);
       border: 1px solid var(--border-color);
       padding: .4rem .8rem;
       border-radius: 4px;
       cursor: pointer;
       font-size: 1rem;
-    }
-    :root.dark-mode #getConverterBtn,
-    :root.dark-mode #getRelayBtn,
-    :root.dark-mode #getMeterBtn,
-    :root.dark-mode #getTemperatureBtn,
-    :root.dark-mode #setConverterBtn,
-    :root.dark-mode #setRelayBtn,
-    :root.dark-mode #setHMIBtn,
-    :root.dark-mode #getConnectorStatusBtn,
-    :root.dark-mode #getEVInfoBtn {
-      color: #fff;
     }
     .emergency-btn {
       background: var(--emergency-btn-bg);
@@ -283,13 +356,20 @@
       cursor: pointer;
       font-size: 1rem;
     }
-    .toggle-btn:hover, #getBtn:hover, .suffix-btn:hover {
+    .toggle-btn:hover,
+    .get-btn:hover,
+    .suffix-btn:hover {
       background: #3ca3f7;
     }
-    #getConverterBtn:hover, #setConverterBtn:hover, #setRelayBtn:hover, 
-    #setHMIBtn:hover, #getRelayBtn:hover, #getMeterBtn:hover, #getTemperatureBtn:hover,
-    #setRelayBtn:hover, #getConnectorStatusBtn:hover,
-    #getEVInfoBtn:hover {
+    .get-converter-btn:hover,
+    .set-converter-btn:hover,
+    .set-relay-btn:hover,
+    .set-hmi-btn:hover,
+    .get-relay-btn:hover,
+    .get-meter-btn:hover,
+    .get-temperature-btn:hover,
+    .get-connector-status-btn:hover,
+    .get-ev-info-btn:hover {
       background: var(--command-btn-hover);
     }
     .emergency-btn:hover {
@@ -298,20 +378,14 @@
     .suffix-btn.active:hover {
       background: #0056b3;
     }
-    .toggle-btn {
-      margin-left: auto;
+    .disabled-btn {
+      background: var(--disabled-btn-bg);
+      color: var(--disabled-btn-text);
+      cursor: not-allowed;
+      pointer-events: auto;
     }
-    #toggleButtons {
-      display: flex;
-      justify-content: flex-end;
-      flex-grow: 1;
-    }
-    .emergency-buttons {
-      display: flex;
-      gap: .5rem;
-    }
-    .hidden {
-      display: none;
+    .disabled-btn:hover {
+      background: var(--disabled-btn-bg);
     }
     .modal {
       display: none;
@@ -347,7 +421,8 @@
       margin-bottom: 0.5rem;
       font-size: 1rem;
     }
-    .modal-body input, .modal-body select {
+    .modal-body input,
+    .modal-body select {
       width: 100%;
       padding: 0.4rem;
       border: 1px solid var(--input-border);
@@ -426,14 +501,46 @@
     input:checked + .slider:before {
       transform: translateX(20px);
     }
-    @media(max-width:700px){
-      .content { flex-direction:column; }
-      #detail { border-left:none; border-top:1px solid var(--border-color); }
-      .entry .ts { width:120px; }
-      .entry .msg { max-width:calc(100% - 120px); }
+    .request-nav {
+      background: var(--request-nav-bg);
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .request-nav .status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .request-nav .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .request-nav .status-indicator.connected {
+      background: var(--status-connected);
+    }
+    .request-nav .status-indicator.disconnected {
+      background: var(--status-disconnected);
+    }
+    @media(max-width:700px) {
+      .cp-container { flex-direction: column; }
+      .cp-section { border-right: none; border-bottom: 1px solid var(--border-color); }
+      .cp-section:last-child { border-bottom: none; }
+      .entry .ts { width: 120px; }
+      .entry .msg { max-width: calc(100% - 120px); }
       .modal-content { width: 95%; }
       .subheader { flex-direction: column; align-items: flex-start; }
-      .emergency-buttons { margin-top: .5rem; width: 100%; justify-content: flex-end; }
+      .request-nav { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .table-footer { flex-wrap: wrap; }
+      .table-footer.response-footer { flex-direction: column; align-items: flex-start; }
     }
     .toast {
       position: fixed;
@@ -479,69 +586,7 @@
   </div>
 
   <div class="container">
-    <div class="content">
-      <div id="log">
-        <div class="entry status"><span class="ts">--:--:--</span><span class="msg">Please select CP in nav</span></div>
-      </div>
-      <div id="detail">
-        <div class="subheader">
-          Request
-          <div class="emergency-buttons">
-            <button id="emergencyBtnCP_01" class="emergency-btn" data-cp="CP_01">Emergency Stop</button>
-            <button id="emergencyBtnCP_02" class="emergency-btn hidden" data-cp="CP_02">Emergency Stop</button>
-            <button id="emergencyBtnCP_03" class="emergency-btn hidden" data-cp="CP_03">Emergency Stop</button>
-          </div>
-        </div>
-        <div class="filter">
-          <label for="callFilter">Filter Requests:</label>
-          <select id="callFilter"><option value="all">All</option></select>
-        </div>
-        <table id="call-table">
-          <tbody></tbody>
-        </table>
-        <table id="call-desc">
-          <thead><tr><th>Name</th><th>Value</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="table-footer">
-          <div class="button-group">
-            <button id="setConverterBtn">SetConverter</button>
-            <button id="setRelayBtn">SetRelay</button>
-            <button id="setHMIBtn">SetHMI</button>
-          </div>
-          <div id="toggleButtons">
-            <button id="toggleBtnCP_01" class="toggle-btn" data-cp="CP_01">Start</button>
-            <button id="toggleBtnCP_02" class="toggle-btn hidden" data-cp="CP_02">Start</button>
-            <button id="toggleBtnCP_03" class="toggle-btn hidden" data-cp="CP_03">Start</button>
-          </div>
-        </div>
-        <div class="subheader">Response</div>
-        <div class="filter">
-          <label for="resultFilter">Filter Responses:</label>
-          <select id="resultFilter"><option value="all">All</option></select>
-        </div>
-        <table id="result-table">
-          <tbody></tbody>
-        </table>
-        <table id="result-desc">
-          <thead><tr><th>Name</th><th>Value</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="table-footer">
-          <div class="button-group">
-            <button id="getConverterBtn">GetConverter</button>
-            <button id="getRelayBtn">GetRelay</button>
-            <button id="getConnectorStatusBtn">GetConnectorStatus</button>
-            <button id="getEVInfoBtn">GetEVInfo</button>
-            <button id="getMeterBtn">GetMeter</button>
-            <button id="getTemperatureBtn">GetTemperature</button>
-          </div>
-          <div class="table-footer response-footer">
-            <button id="getBtn">Get</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div class="cp-container" id="cpContainer"></div>
   </div>
 
   <div class="modal" id="commandModal">
@@ -558,64 +603,28 @@
 <script>
 (function(){
   const host = location.hostname || "localhost", port = 2409;
-  let currentCP = '';
+  let selectedCPs = [];
   let chargerStatus = { 'CP_01': '', 'CP_02': '', 'CP_03': '' };
-  let toggleStates = { 'CP_01': 'Start', 'CP_02': 'Start', 'CP_03': 'Start' };
-  let lastMessageTime = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
+  let toggleStates = { 'CP_01': 'Start', 'CP_02': 'Start', 'CP_03': 'Start', 'no-cp': 'Start' };
+  let lastHeartbeatTime = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
   let noResponseTimeout = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
   const wsConnections = {
     'CP_01': null,
     'CP_02': null,
     'CP_03': null
   };
-  // Store last settings for each command and CP
   const lastSettings = {
     'CP_01': { setConverter: null, setRelay: null, setHMI: null },
     'CP_02': { setConverter: null, setRelay: null, setHMI: null },
     'CP_03': { setConverter: null, setRelay: null, setHMI: null }
   };
-  const log           = document.getElementById('log'),
-        tblCall       = document.querySelector('#call-table tbody'),
-        descCall      = document.querySelector('#call-desc tbody'),
-        tblResult     = document.querySelector('#result-table tbody'),
-        descResult    = document.querySelector('#result-desc tbody'),
-        getBtn        = document.getElementById('getBtn'),
-        setConverterBtn       = document.getElementById('setConverterBtn'),
-        setRelayBtn           = document.getElementById('setRelayBtn'),
-        setHMIBtn             = document.getElementById('setHMIBtn'),
-        getConverterBtn       = document.getElementById('getConverterBtn'),
-        getConnectorStatusBtn = document.getElementById('getConnectorStatusBtn'),
-        getEVInfoBtn          = document.getElementById('getEVInfoBtn'),
-        getRelayBtn           = document.getElementById('getRelayBtn'),
-        getMeterBtn           = document.getElementById('getMeterBtn'),
-        getTemperatureBtn     = document.getElementById('getTemperatureBtn'),
-        modeToggleBtn = document.getElementById('modeToggleBtn'),
-        callFilter    = document.getElementById('callFilter'),
-        resultFilter  = document.getElementById('resultFilter'),
-        detail        = document.getElementById('detail'),
-        cp01Btn       = document.getElementById('cp01Btn'),
-        cp02Btn       = document.getElementById('cp02Btn'),
-        cp03Btn       = document.getElementById('cp03Btn'),
-        currentCPSpan = document.getElementById('currentCP'),
-        modal         = document.getElementById('commandModal'),
-        modalTitle    = document.getElementById('modalTitle'),
-        modalBody     = document.getElementById('modalBody'),
-        modalCancel   = document.getElementById('modalCancel'),
-        modalSubmit   = document.getElementById('modalSubmit'),
-        toggleBtnCP_01 = document.getElementById('toggleBtnCP_01'),
-        toggleBtnCP_02 = document.getElementById('toggleBtnCP_02'),
-        toggleBtnCP_03 = document.getElementById('toggleBtnCP_03'),
-        emergencyBtnCP_01 = document.getElementById('emergencyBtnCP_01'),
-        emergencyBtnCP_02 = document.getElementById('emergencyBtnCP_02'),
-        emergencyBtnCP_03 = document.getElementById('emergencyBtnCP_03');
-
-  let requestCommands  = new Set(['all']),
-      responseCommands = new Set(['all']),
-      messagesByCP = {
-        'CP_01': { call: [], result: [] },
-        'CP_02': { call: [], result: [] },
-        'CP_03': { call: [], result: [] }
-      };
+  const requestCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']) };
+  const responseCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']) };
+  const messagesByCP = {
+    'CP_01': { call: [], result: [] },
+    'CP_02': { call: [], result: [] },
+    'CP_03': { call: [], result: [] }
+  };
 
   function showToast(message) {
     let toast = document.querySelector('.toast');
@@ -633,22 +642,222 @@
   }
 
   function updateActiveButton(){
-    cp01Btn.classList.toggle('active', currentCP === 'CP_01');
-    cp02Btn.classList.toggle('active', currentCP === 'CP_02');
-    cp03Btn.classList.toggle('active', currentCP === 'CP_03');
+    document.getElementById('cp01Btn').classList.toggle('active', selectedCPs.includes('CP_01'));
+    document.getElementById('cp02Btn').classList.toggle('active', selectedCPs.includes('CP_02'));
+    document.getElementById('cp03Btn').classList.toggle('active', selectedCPs.includes('CP_03'));
   }
 
   function updateTitle(){
-    currentCPSpan.textContent = currentCP || '';
+    document.getElementById('currentCP').textContent = selectedCPs.length > 0 ? selectedCPs.join(', ') : 'No CP Selected';
   }
 
-  function updateToggleButtons(){
-    toggleBtnCP_01.classList.toggle('hidden', currentCP && currentCP !== 'CP_01');
-    toggleBtnCP_02.classList.toggle('hidden', currentCP !== 'CP_02');
-    toggleBtnCP_03.classList.toggle('hidden', currentCP !== 'CP_03');
-    emergencyBtnCP_01.classList.toggle('hidden', currentCP && currentCP !== 'CP_01');
-    emergencyBtnCP_02.classList.toggle('hidden', currentCP !== 'CP_02');
-    emergencyBtnCP_03.classList.toggle('hidden', currentCP !== 'CP_03');
+  function updateCPContainer(){
+    const cpContainer = document.getElementById('cpContainer');
+    cpContainer.innerHTML = '';
+
+    if (selectedCPs.length === 0) {
+      cpContainer.innerHTML = `
+        <div class="cp-section" id="section-no-cp">
+          <div class="content">
+            <div class="detail" id="detail-no-cp">
+              <div class="request-nav">
+                <span>Connection Status: </span>
+                <span class="status">
+                  <span class="status-indicator disconnected"></span>
+                  <span id="connectionStatus-no-cp">No CP Selected</span>
+                </span>
+              </div>
+              <div class="subheader">
+                Request
+              </div>
+              <div class="filter">
+                <label for="callFilter-no-cp">Filter Requests:</label>
+                <select id="callFilter-no-cp" disabled><option value="all">All</option></select>
+              </div>
+              <table id="call-table-no-cp" class="call-table">
+                <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                <tbody></tbody>
+              </table>
+              <table id="call-desc-no-cp" class="call-desc">
+                <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                <tbody></tbody>
+              </table>
+              <div class="table-footer request-footer">
+                <div class="button-group">
+                  <button id="setConverterBtn-no-cp" class="set-converter-btn">SetConverter</button>
+                  <button id="setRelayBtn-no-cp" class="set-relay-btn">SetRelay</button>
+                  <button id="setHMIBtn-no-cp" class="set-hmi-btn">SetHMI</button>
+                </div>
+                <div class="toggle-container">
+                  <button id="toggleBtn-no-cp" class="toggle-btn">Start</button>
+                </div>
+              </div>
+              <div class="subheader">Response</div>
+              <div class="filter">
+                <label for="resultFilter-no-cp">Filter Responses:</label>
+                <select id="resultFilter-no-cp" disabled><option value="all">All</option></select>
+              </div>
+              <table id="result-table-no-cp" class="result-table">
+                <tbody></tbody>
+              </table>
+              <table id="result-desc-no-cp" class="result-desc">
+                <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                <tbody></tbody>
+              </table>
+              <div class="table-footer response-footer">
+                <div class="button-group column">
+                  <div class="button-row">
+                    <button id="getConverterBtn-no-cp" class="get-converter-btn">GetConverter</button>
+                    <button id="getRelayBtn-no-cp" class="get-relay-btn">GetRelay</button>
+                    <button id="getConnectorStatusBtn-no-cp" class="get-connector-status-btn">GetConnectorStatus</button>
+                  </div>
+                  <div class="button-row">
+                    <button id="getEVInfoBtn-no-cp" class="get-ev-info-btn">GetEVInfo</button>
+                    <button id="getMeterBtn-no-cp" class="get-meter-btn">GetMeter</button>
+                    <button id="getTemperatureBtn-no-cp" class="get-temperature-btn">GetTemperature</button>
+                  </div>
+                </div>
+                <div class="button-group">
+                  <button id="getBtn-no-cp" class="get-btn">Get</button>
+                </div>
+              </div>
+            </div>
+            <div id="log-no-cp" class="log">
+              <div class="entry status"><span class="ts">${nowTs()}</span><span class="msg">Please select a CP to view data</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+      ['setConverterBtn-no-cp', 'setRelayBtn-no-cp', 'setHMIBtn-no-cp', 'toggleBtn-no-cp', 'getConverterBtn-no-cp', 'getRelayBtn-no-cp', 'getConnectorStatusBtn-no-cp', 'getEVInfoBtn-no-cp', 'getMeterBtn-no-cp', 'getTemperatureBtn-no-cp', 'getBtn-no-cp'].forEach(id => {
+        document.getElementById(id).addEventListener('click', () => showToast('Please select a CP'));
+      });
+      return;
+    }
+
+    selectedCPs.forEach(cp => {
+      const cpSection = document.createElement('div');
+      cpSection.className = 'cp-section';
+      cpSection.id = `section-${cp}`;
+      cpSection.innerHTML = `
+        <div class="content">
+          <div class="detail" id="detail-${cp}">
+            <div class="request-nav">
+              <span>Connection Status: </span>
+              <span class="status">
+                <span class="status-indicator" id="connectionIndicator-${cp}"></span>
+                <span id="connectionStatus-${cp}">${wsConnections[cp]?.readyState === WebSocket.OPEN ? `Connected to ${cp}` : `Disconnected from ${cp}`}</span>
+              </span>
+            </div>
+            <div class="subheader">
+              Request
+              <div class="button-group">
+                <button id="emergencyBtn${cp}" class="emergency-btn" data-cp="${cp}">Emergency Stop</button>
+              </div>
+            </div>
+            <div class="filter">
+              <label for="callFilter-${cp}">Filter Requests:</label>
+              <select id="callFilter-${cp}"><option value="all">All</option></select>
+            </div>
+            <table id="call-table-${cp}" class="call-table">
+              <thead><tr><th>Name</th><th>Value</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <table id="call-desc-${cp}" class="call-desc">
+              <thead><tr><th>Name</th><th>Value</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div class="table-footer request-footer">
+              <div class="button-group">
+                <button id="setConverterBtn-${cp}" class="set-converter-btn">SetConverter</button>
+                <button id="setRelayBtn-${cp}" class="set-relay-btn">SetRelay</button>
+                <button id="setHMIBtn-${cp}" class="set-hmi-btn">SetHMI</button>
+              </div>
+              <div class="toggle-container">
+                <button id="toggleBtn${cp}" class="toggle-btn" data-cp="${cp}">${toggleStates[cp]}</button>
+              </div>
+            </div>
+            <div class="subheader">Response</div>
+            <div class="filter">
+              <label for="resultFilter-${cp}">Filter Responses:</label>
+              <select id="resultFilter-${cp}"><option value="all">All</option></select>
+            </div>
+            <table id="result-table-${cp}" class="result-table">
+              <tbody></tbody>
+            </table>
+            <table id="result-desc-${cp}" class="result-desc">
+              <thead><tr><th>Name</th><th>Value</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div class="table-footer response-footer">
+              <div class="button-group column">
+                <div class="button-row">
+                  <button id="getConverterBtn-${cp}" class="get-converter-btn">GetConverter</button>
+                  <button id="getRelayBtn-${cp}" class="get-relay-btn">GetRelay</button>
+                  <button id="getConnectorStatusBtn-${cp}" class="get-connector-status-btn">GetConnectorStatus</button>
+                </div>
+                <div class="button-row">
+                  <button id="getEVInfoBtn-${cp}" class="get-ev-info-btn">GetEVInfo</button>
+                  <button id="getMeterBtn-${cp}" class="get-meter-btn">GetMeter</button>
+                  <button id="getTemperatureBtn-${cp}" class="get-temperature-btn">GetTemperature</button>
+                </div>
+              </div>
+              <div class="button-group">
+                <button id="getBtn-${cp}" class="get-btn">Get</button>
+              </div>
+            </div>
+          </div>
+          <div id="log-${cp}" class="log">
+            <div class="entry status"><span class="ts">${nowTs()}</span><span class="msg">Connecting to ${cp}…</span></div>
+          </div>
+        </div>
+      `;
+      cpContainer.appendChild(cpSection);
+
+      document.getElementById(`toggleBtn${cp}`).addEventListener('click', () => handleToggle(cp));
+      document.getElementById(`emergencyBtn${cp}`).addEventListener('click', () => handleEmergency(cp));
+      document.getElementById(`getBtn-${cp}`).addEventListener('click', () => handleGet(cp));
+      document.getElementById(`setConverterBtn-${cp}`).addEventListener('click', () => showModal('setConverter', cp));
+      document.getElementById(`setRelayBtn-${cp}`).addEventListener('click', () => showModal('setRelay', cp));
+      document.getElementById(`setHMIBtn-${cp}`).addEventListener('click', () => showModal('setHMI', cp));
+      document.getElementById(`getConverterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConverter', cp));
+      document.getElementById(`getRelayBtn-${cp}`).addEventListener('click', () => handleGetCommand('getRelay', cp));
+      document.getElementById(`getConnectorStatusBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConnectorStatus', cp));
+      document.getElementById(`getEVInfoBtn-${cp}`).addEventListener('click', () => handleGetCommand('getEVInfo', cp));
+      document.getElementById(`getMeterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getMeter', cp));
+      document.getElementById(`getTemperatureBtn-${cp}`).addEventListener('click', () => handleGetCommand('getTemperature', cp));
+      document.getElementById(`callFilter-${cp}`).addEventListener('change', () => updateTable(cp, 'call'));
+      document.getElementById(`resultFilter-${cp}`).addEventListener('change', () => updateTable(cp, 'result'));
+
+      updateDropdown(document.getElementById(`callFilter-${cp}`), requestCommands[cp]);
+      updateDropdown(document.getElementById(`resultFilter-${cp}`), responseCommands[cp]);
+      updateTable(cp, 'call');
+      updateTable(cp, 'result');
+    });
+
+    updateConnectionStatus();
+  }
+
+  function updateConnectionStatus(){
+    selectedCPs.forEach(cp => {
+      const statusElement = document.getElementById(`connectionStatus-${cp}`);
+      const indicatorElement = document.getElementById(`connectionIndicator-${cp}`);
+      if (statusElement && indicatorElement) {
+        const isWebSocketOpen = wsConnections[cp]?.readyState === WebSocket.OPEN;
+        const now = Date.now();
+        const hasRecentHeartbeat = lastHeartbeatTime[cp] && (now - lastHeartbeatTime[cp] <= 15000);
+        if (isWebSocketOpen && hasRecentHeartbeat) {
+          statusElement.textContent = `Connected to ${cp}`;
+          indicatorElement.className = 'status-indicator connected';
+          console.log(`Status updated to Connected for ${cp} at ${nowTs()}`);
+        } else {
+          statusElement.textContent = `Disconnected from ${cp}`;
+          indicatorElement.className = 'status-indicator disconnected';
+          console.log(`Status updated to Disconnected for ${cp} at ${nowTs()} (WebSocket: ${isWebSocketOpen}, Recent Heartbeat: ${hasRecentHeartbeat})`);
+        }
+      } else {
+        console.warn(`Status elements not found for ${cp}`);
+      }
+    });
   }
 
   function getWebSocketUrl(cp){
@@ -662,290 +871,166 @@
     noResponseTimeout[cp] = setTimeout(() => {
       if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
         const now = Date.now();
-        if (!lastMessageTime[cp] || (now - lastMessageTime[cp] >= 15000)) {
-          if (!currentCP || cp === currentCP) {
-            appendLog(`Charge for ${cp} no response`, 'status');
+        if (!lastHeartbeatTime[cp] || (now - lastHeartbeatTime[cp] >= 15000)) {
+          if (selectedCPs.includes(cp)) {
+            appendLog(`No heartbeat received for ${cp}`, 'status', cp);
+            console.log(`No heartbeat timeout triggered for ${cp} at ${nowTs()}`);
+            updateConnectionStatus();
           }
+          startNoResponseTimeout(cp);
         }
-        startNoResponseTimeout(cp);
       }
     }, 15000);
   }
 
   window.switchCP = function(cp){
-    if (cp === currentCP) {
-      currentCP = '';
+    if (selectedCPs.includes(cp)) {
+      selectedCPs = selectedCPs.filter(c => c !== cp);
     } else {
-      currentCP = cp;
+      selectedCPs.push(cp);
     }
 
-    const otherCPs = ['CP_01', 'CP_02', 'CP_03'].filter(otherCP => otherCP !== currentCP);
-    otherCPs.forEach(otherCP => {
-      if (wsConnections[otherCP] && wsConnections[otherCP].readyState === WebSocket.OPEN) {
+    selectedCPs.forEach(cp => {
+      if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+        connect(cp);
+      }
+    });
+
+    ['CP_01', 'CP_02', 'CP_03'].forEach(otherCP => {
+      if (!selectedCPs.includes(otherCP) && wsConnections[otherCP] && wsConnections[otherCP].readyState === WebSocket.OPEN) {
         wsConnections[otherCP].close();
         wsConnections[otherCP] = null;
-      }
-      if (noResponseTimeout[otherCP]) {
-        clearTimeout(noResponseTimeout[otherCP]);
-        noResponseTimeout[otherCP] = null;
+        if (noResponseTimeout[otherCP]) {
+          clearTimeout(noResponseTimeout[otherCP]);
+          noResponseTimeout[otherCP] = null;
+        }
       }
     });
 
     updateActiveButton();
     updateTitle();
-    updateToggleButtons();
-    
-    if (currentCP) {
-      log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">Connecting to ${currentCP}…</span></div>`;
-      connect(currentCP);
-    } else {
-      log.innerHTML = `<div class="entry status"><span class="ts">--:--:--</span><span class="msg">No CP selected</span></div>`;
-      ['CP_01', 'CP_02', 'CP_03'].forEach(cp => connect(cp));
-    }
-
-    requestCommands = new Set(['all']);
-    responseCommands = new Set(['all']);
-    ['CP_01', 'CP_02', 'CP_03'].forEach(cp => {
-      messagesByCP[cp].call.forEach(msg => requestCommands.add(msg.command));
-      messagesByCP[cp].result.forEach(msg => responseCommands.add(msg.command));
-    });
-    updateDropdown(callFilter, requestCommands);
-    updateDropdown(resultFilter, responseCommands);
-    updateTable('call');
-    updateTable('result');
+    updateCPContainer();
   };
 
-  modeToggleBtn.addEventListener('click', ()=>{
+  document.getElementById('modeToggleBtn').addEventListener('click', () => {
     const isDark = document.documentElement.classList.toggle('dark-mode');
-    modeToggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+    document.getElementById('modeToggleBtn').title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
   });
 
-  [toggleBtnCP_01, toggleBtnCP_02, toggleBtnCP_03].forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cp = btn.dataset.cp;
-      if (!currentCP) {
-        showToast('Please select CP in nav');
-        return;
-      }
-      if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
-        showToast('No connection');
-        return;
-      }
-      const action = toggleStates[cp] === 'Start' ? 'start' : 'stop';
-      if (action === 'start' && chargerStatus[cp] !== 'Preparing') {
-        showToast('Charger not ready');
-        return;
-      }
-      toggleStates[cp] = action === 'start' ? 'Stop' : 'Start';
-      btn.textContent = toggleStates[cp];
-      wsConnections[cp].send(action);
-      detail.scrollTop = detail.scrollHeight;
-    });
-  });
-
-  [emergencyBtnCP_01, emergencyBtnCP_02, emergencyBtnCP_03].forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cp = btn.dataset.cp;
-      if (!currentCP) {
-        showToast('Please select CP in nav');
-        return;
-      }
-      if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
-        showToast('No connection');
-        return;
-      }
-      toggleStates[cp] = 'Start';
-      document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
-      wsConnections[cp].send('stop');
-      showToast(`Emergency Stop for ${cp}`);
-      detail.scrollTop = detail.scrollHeight;
-    });
-  });
-
-  getBtn.addEventListener('click', ()=>{
-    if (!currentCP) {
-      showToast('Please select CP in nav');
+  function handleToggle(cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
       return;
     }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
       return;
     }
-    wsConnections[currentCP].send('get');
+    const action = toggleStates[cp] === 'Start' ? 'start' : 'stop';
+    if (action === 'start' && chargerStatus[cp] !== 'Preparing') {
+      showToast(`Charger ${cp} not ready`);
+      return;
+    }
+    toggleStates[cp] = action === 'start' ? 'Stop' : 'Start';
+    document.getElementById(`toggleBtn${cp}`).textContent = toggleStates[cp];
+    wsConnections[cp].send(action);
+    const detail = document.getElementById(`detail-${cp}`);
     detail.scrollTop = detail.scrollHeight;
-  });
+  }
 
-  getConverterBtn.addEventListener('click',()=>{
-    if (!currentCP) {
-      showToast('Please select CP in nav');
+  function handleEmergency(cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
       return;
     }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
       return;
     }
-    wsConnections[currentCP].send('getConverter');
+    toggleStates[cp] = 'Start';
+    document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+    wsConnections[cp].send('stop');
+    showToast(`Emergency Stop for ${cp}`);
+    const detail = document.getElementById(`detail-${cp}`);
     detail.scrollTop = detail.scrollHeight;
-  });
+  }
 
-  getConnectorStatusBtn.addEventListener('click',()=>{
-    if (!currentCP) {
-      showToast('Please select CP in nav');
+  function handleGet(cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
       return;
     }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
       return;
     }
-    wsConnections[currentCP].send('getConnectorStatus');
+    wsConnections[cp].send('get');
+    const detail = document.getElementById(`detail-${cp}`);
     detail.scrollTop = detail.scrollHeight;
-  });
+  }
 
-  getEVInfoBtn.addEventListener('click',()=>{
-    if (!currentCP) {
-      showToast('Please select CP in nav');
+  function handleGetCommand(command, cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
       return;
     }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
       return;
     }
-    wsConnections[currentCP].send('getEVInfo');
+    wsConnections[cp].send(command);
+    const detail = document.getElementById(`detail-${cp}`);
     detail.scrollTop = detail.scrollHeight;
-  });
+  }
 
-  getRelayBtn.addEventListener('click',()=>{
-    if (!currentCP) {
-      showToast('Please select CP in nav');
-      return;
-    }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
-      return;
-    }
-    wsConnections[currentCP].send('getRelay');
-    detail.scrollTop = detail.scrollHeight;
-  });
+  let currentModalCommand = null;
+  let currentModalCP = null;
 
-  getMeterBtn.addEventListener('click',()=>{
-    if (!currentCP) {
-      showToast('Please select CP in nav');
+  document.getElementById('modalSubmit').addEventListener('click', () => {
+    const cp = currentModalCP;
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      document.getElementById('commandModal').style.display = 'none';
       return;
     }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
+      document.getElementById('commandModal').style.display = 'none';
       return;
     }
-    wsConnections[currentCP].send('getMeter');
-    detail.scrollTop = detail.scrollHeight;
-  });
-
-  getTemperatureBtn.addEventListener('click',()=>{
-    if (!currentCP) {
-      showToast('Please select CP in nav');
-      return;
-    }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
-      return;
-    }
-    wsConnections[currentCP].send('getTemperature');
-    detail.scrollTop = detail.scrollHeight;
-  });
-
-  setConverterBtn.addEventListener('click', () => {
-    if (!currentCP) {
-      showToast('Please select CP in nav');
-      return;
-    }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
-      return;
-    }
-    showModal('setConverter');
-  });
-
-  setRelayBtn.addEventListener('click', () => {
-    if (!currentCP) {
-      showToast('Please select CP in nav');
-      return;
-    }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
-      return;
-    }
-    showModal('setRelay');
-  });
-
-  setHMIBtn.addEventListener('click', () => {
-    if (!currentCP) {
-      showToast('Please select CP in nav');
-      return;
-    }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
-      return;
-    }
-    showModal('setHMI');
-  });
-
-  modalSubmit.addEventListener('click', () => {
-    if (!currentCP) {
-      showToast('Please select CP in nav');
-      modal.style.display = 'none';
-      return;
-    }
-    if (!wsConnections[currentCP] || wsConnections[currentCP].readyState !== WebSocket.OPEN) {
-      showToast('No connection');
-      modal.style.display = 'none';
-      return;
-    }
-    let command = modalTitle.textContent === 'Set Converter' ? 'setConverter' : 
-                  modalTitle.textContent === 'Set Relay' ? 'setRelay' : 
-                  'setHMI';
-    let payload = { ChargerID: currentCP };
+    let command = currentModalCommand;
+    let payload = { ChargerID: cp };
     if (command === 'setConverter') {
       const converterStatus = document.getElementById('converterStatus');
       const voltage = document.getElementById('voltage');
       const current = document.getElementById('current');
       if (!converterStatus || !voltage || !current) {
         showToast('Some fields are missing');
-        modal.style.display = 'none';
+        document.getElementById('commandModal').style.display = 'none';
         return;
       }
       payload.Status = converterStatus.checked ? 'On' : 'Off';
       payload.Voltage = parseInt(voltage.value);
       payload.Current = parseInt(current.value);
-      // Save settings
-      lastSettings[currentCP].setConverter = {
-        Status: payload.Status,
-        Voltage: payload.Voltage,
-        Current: payload.Current
-      };
+      lastSettings[cp].setConverter = { Status: payload.Status, Voltage: payload.Voltage, Current: payload.Current };
     } else if (command === 'setRelay') {
       const relayStatus = document.getElementById('relayStatus');
       if (!relayStatus) {
         showToast('Some fields are missing');
-        modal.style.display = 'none';
+        document.getElementById('commandModal').style.display = 'none';
         return;
       }
       payload.Status = relayStatus.checked ? 'On' : 'Off';
-      // Save settings
-      lastSettings[currentCP].setRelay = {
-        Status: payload.Status
-      };
+      lastSettings[cp].setRelay = { Status: payload.Status };
     } else if (command === 'setHMI') {
       const HMIStatus = document.getElementById('HMIStatus');
       if (!HMIStatus || HMIStatus.value === '') {
         showToast('Please select one status');
-        modal.style.display = 'none';
+        document.getElementById('commandModal').style.display = 'none';
         return;
       }
       payload.Status = HMIStatus.value;
-      // Save settings
-      lastSettings[currentCP].setHMI = {
-        Status: payload.Status
-      };
+      lastSettings[cp].setHMI = { Status: payload.Status };
     }
     const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
       (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
@@ -965,26 +1050,33 @@
         }
       }
     ];
-    wsConnections[currentCP].send(JSON.stringify(message));
+    wsConnections[cp].send(JSON.stringify(message));
+    const detail = document.getElementById(`detail-${cp}`);
     detail.scrollTop = detail.scrollHeight;
-    modal.style.display = 'none';
+    document.getElementById('commandModal').style.display = 'none';
   });
 
-  modalCancel.addEventListener('click', () => {
-    modal.style.display = 'none';
+  document.getElementById('modalCancel').addEventListener('click', () => {
+    document.getElementById('commandModal').style.display = 'none';
   });
 
-  function showModal(command) {
-    modalTitle.textContent = command === 'setConverter' ? 'Set Converter' : 
-                            command === 'setRelay' ? 'Set Relay' : 
-                            'Set HMI';
-    modalBody.innerHTML = '';
-    const settings = lastSettings[currentCP][command];
+  function showModal(command, cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      return;
+    }
+    currentModalCommand = command;
+    currentModalCP = cp;
+    document.getElementById('modalTitle').textContent = command === 'setConverter' ? 'Set Converter' : 
+                                                     command === 'setRelay' ? 'Set Relay' : 
+                                                     'Set HMI';
+    document.getElementById('modalBody').innerHTML = '';
+    const settings = lastSettings[cp][command];
     if (command === 'setConverter') {
       const status = settings?.Status === 'On' ? 'checked' : '';
       const voltage = settings?.Voltage ?? 423;
       const current = settings?.Current ?? 10;
-      modalBody.innerHTML = `
+      document.getElementById('modalBody').innerHTML = `
         <div class="switch-container">
           <label for="converterStatus">Status:</label>
           <label class="switch">
@@ -1000,7 +1092,7 @@
       `;
     } else if (command === 'setRelay') {
       const status = settings?.Status === 'On' ? 'checked' : '';
-      modalBody.innerHTML = `
+      document.getElementById('modalBody').innerHTML = `
         <div class="switch-container">
           <label for="relayStatus">Status:</label>
           <label class="switch">
@@ -1012,54 +1104,62 @@
       `;
     } else if (command === 'setHMI') {
       const status = settings?.Status ?? '';
-      modalBody.innerHTML = `
+      document.getElementById('modalBody').innerHTML = `
         <label for="HMIStatus">Status:</label>
         <select id="HMIStatus">
           <option value="" ${!status ? 'selected' : ''}>Select Status</option>
           <option value="Rapid" ${status === 'Rapid' ? 'selected' : ''}>Rapid</option>
           <option value="Fast" ${status === 'Fast' ? 'selected' : ''}>Fast</option>
           <option value="Available" ${status === 'Available' ? 'selected' : ''}>Available</option>
-          <option value="Engage" ${status === 'Engage' ? 'selected' : ''}>Engage</option>
+          <option value="Engaged" ${status === 'Engaged' ? 'selected' : ''}>Engaged</option>
           <option value="Off" ${status === 'Off' ? 'selected' : ''}>Off</option>
         </select>
       `;
     }
-    const statusSwitch = modalBody.querySelector('#converterStatus, #relayStatus');
+    const statusSwitch = document.getElementById('modalBody').querySelector('#converterStatus, #relayStatus');
     if (statusSwitch) {
       statusSwitch.addEventListener('change', () => {
         const label = statusSwitch.parentElement.nextElementSibling;
         label.textContent = statusSwitch.checked ? 'On' : 'Off';
       });
     }
-    modal.style.display = 'flex';
+    document.getElementById('commandModal').style.display = 'flex';
   }
 
   function nowTs(){
-    const d=new Date(), z=n=>String(n).padStart(2,'0');
+    const d = new Date();
+    d.setHours(d.getHours() + 8); // Adjust to HKT (UTC+8)
+    const z = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
   }
 
-  function appendLog(msg,cls=''){
-    const e=document.createElement('div'),
-          ts=document.createElement('span'),
-          ms=document.createElement('span');
-    e.className='entry'+(cls?' '+cls:'');
-    ts.className='ts'; ts.textContent=nowTs();
-    ms.className='msg'; ms.textContent=msg;
-    e.append(ts,ms);
+  function appendLog(msg, cls = '', cp) {
+    if (!selectedCPs.includes(cp)) return;
+    const log = document.getElementById(`log-${cp}`);
+    if (!log) return;
+    const e = document.createElement('div'),
+          ts = document.createElement('span'),
+          ms = document.createElement('span');
+    e.className = 'entry' + (cls ? ' ' + cls : '');
+    ts.className = 'ts';
+    ts.textContent = nowTs();
+    ms.className = 'msg';
+    ms.textContent = msg;
+    e.append(ts, ms);
     log.appendChild(e);
-    log.scrollTop=log.scrollHeight;
+    log.scrollTop = log.scrollHeight;
   }
 
-  function updateDropdown(dropdown,cmds){
-    const sel=dropdown.value;
-    dropdown.innerHTML='';
-    cmds.forEach(c=>{
-      const o=document.createElement('option');
-      o.value=c; o.textContent=c;
+  function updateDropdown(dropdown, cmds){
+    const sel = dropdown.value;
+    dropdown.innerHTML = '';
+    cmds.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c;
+      o.textContent = c;
       dropdown.appendChild(o);
     });
-    dropdown.value = cmds.has(sel)?sel:'all';
+    dropdown.value = cmds.has(sel) ? sel : 'all';
   }
 
   function flattenObject(obj, parent = '', res = {}) {
@@ -1077,67 +1177,104 @@
     return res;
   }
 
-  function setLatest(tbl,desc,raw,cp,type,currentCP){
-    const atBottom = detail.scrollHeight-detail.clientHeight<=detail.scrollTop+1;
-    const filter = type==='call'?callFilter.value:resultFilter.value;
-    if(filter==='all' || messagesByCP[cp][type].slice(-1)[0].command===filter){
-      tbl.innerHTML=''; desc.innerHTML='';
+  function setLatest(cp, tbl, desc, raw, type) {
+    const detail = document.getElementById(`detail-${cp}`);
+    const atBottom = detail.scrollHeight - detail.clientHeight <= detail.scrollTop + 1;
+    tbl.innerHTML = '';
+    desc.innerHTML = '';
+
+    if (type === 'call') {
+      // For request table: Name and Value format
       const row1 = document.createElement('tr'),
             td1_label = document.createElement('td'),
             td1_value = document.createElement('td');
       td1_label.textContent = 'Timestamp';
       td1_value.innerHTML = `<span class="ts">${nowTs()}</span>`;
       row1.append(td1_label, td1_value);
-      
-      let rowCount = 2;
-      if (!currentCP) {
-        rowCount = 3;
-        const row2 = document.createElement('tr'),
-              td2_label = document.createElement('td'),
-              td2_value = document.createElement('td');
-        td2_label.textContent = 'Source';
-        td2_value.textContent = cp;
-        row2.append(td2_label, td2_value);
-        tbl.append(row1, row2);
-      } else {
-        tbl.append(row1);
-      }
-      
+      tbl.append(row1);
+
       const rowJson = document.createElement('tr'),
             tdJson_label = document.createElement('td'),
             tdJson_value = document.createElement('td');
       tdJson_label.textContent = 'Raw JSON';
       tdJson_value.textContent = raw;
       rowJson.append(tdJson_label, tdJson_value);
-      
       tbl.append(rowJson);
-      
-      let o;
-      try{ o=JSON.parse(raw); }
-      catch{
-        const r=document.createElement('tr'),
-              n=document.createElement('td'),
-              v=document.createElement('td');
-        n.textContent='raw'; v.textContent=raw;
-        r.append(n,v); desc.appendChild(r);
-        if(atBottom) detail.scrollTop=detail.scrollHeight;
-        return;
-      }
-      if(Array.isArray(o)){
-        if (o[0] === 2 || o[0] === 3) {
-          if (type === 'call' && o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.payload) {
-            const flattenedPayload = flattenObject(o[3].data.payload);
-            Object.entries(flattenedPayload).forEach(([k, v]) => {
-              const r = document.createElement('tr'),
-                    n = document.createElement('td'),
-                    v2 = document.createElement('td');
-              n.textContent = k;
-              v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
-              r.append(n, v2);
-              desc.appendChild(r);
+    } else {
+      // For response table: Original format (no headers, just Timestamp and Raw JSON)
+      const row1 = document.createElement('tr'),
+            td1_label = document.createElement('td'),
+            td1_value = document.createElement('td');
+      td1_label.textContent = 'Timestamp';
+      td1_value.innerHTML = `<span class="ts">${nowTs()}</span>`;
+      row1.append(td1_label, td1_value);
+      tbl.append(row1);
+
+      const rowJson = document.createElement('tr'),
+            tdJson_label = document.createElement('td'),
+            tdJson_value = document.createElement('td');
+      tdJson_label.textContent = 'Raw JSON';
+      tdJson_value.textContent = raw;
+      rowJson.append(tdJson_label, tdJson_value);
+      tbl.append(rowJson);
+    }
+
+    let o;
+    try {
+      o = JSON.parse(raw);
+    } catch {
+      const r = document.createElement('tr'),
+            n = document.createElement('td'),
+            v = document.createElement('td');
+      n.textContent = 'raw';
+      v.textContent = raw;
+      r.append(n, v);
+      desc.appendChild(r);
+      if (atBottom) detail.scrollTop = detail.scrollHeight;
+      return;
+    }
+
+    if (Array.isArray(o)) {
+      if (o[0] === 2 || o[0] === 3) {
+        let payload = null;
+        if (type === 'call' && o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.payload) {
+          payload = o[3].data.payload;
+          // Only include direct payload keys, excluding ChargerID
+          Object.entries(payload).forEach(([k, v]) => {
+            if (k === 'ChargerID') return; // Skip ChargerID
+            const r = document.createElement('tr'),
+                  n = document.createElement('td'),
+                  v2 = document.createElement('td');
+            n.textContent = k; // Use direct key name, e.g., Status, Voltage, Current
+            v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            r.append(n, v2);
+            desc.appendChild(r);
+          });
+        } else if (type === 'result' && o[2] && typeof o[2] === 'object' && o[2].data) {
+          let data = o[2].data;
+          if (typeof data === 'string') {
+            try {
+              data = JSON.parse(data);
+            } catch {
+              console.error('Failed to parse data field:', data);
+              return;
+            }
+          }
+          if (data.command === 'GetEVInfo' && data.payload) {
+            const desiredOrder = ['Capacity', 'SoC', 'SoH', 'ChargeVoltage', 'ChargeCurrent'];
+            desiredOrder.forEach(key => {
+              if (key in data.payload) {
+                const r = document.createElement('tr'),
+                      n = document.createElement('td'),
+                      v = document.createElement('td');
+                n.textContent = key;
+                v.textContent = String(data.payload[key]);
+                r.append(n, v);
+                desc.appendChild(r);
+              }
             });
-          } else if (type === 'result' && o[2] && typeof o[2] === 'object' && o[2].data && o[2].data.payload) {
-            const flattenedPayload = flattenObject(o[2].data.payload);
+          } else if (data.payload) {
+            const flattenedPayload = flattenObject(data.payload);
             Object.entries(flattenedPayload).forEach(([k, v]) => {
               const r = document.createElement('tr'),
                     n = document.createElement('td'),
@@ -1149,123 +1286,131 @@
             });
           }
         }
-      } else if(o&&typeof o==='object'){
-        const flattenedObj = flattenObject(o);
-        Object.entries(flattenedObj).forEach(([k,v])=>{
-          const r=document.createElement('tr'),
-                n=document.createElement('td'),
-                v2=document.createElement('td');
-          n.textContent=k;
-          v2.textContent=typeof v==='object'?JSON.stringify(v):String(v);
-          r.append(n,v2); desc.appendChild(r);
-        });
-      } else {
-        const r=document.createElement('tr'),
-              n=document.createElement('td'),
-              v2=document.createElement('td');
-        n.textContent='value'; v2.textContent=String(o);
-        r.append(n,v2); desc.appendChild(r);
       }
-      if(atBottom) detail.scrollTop=detail.scrollHeight;
+    } else if (o && typeof o === 'object') {
+      const flattenedObj = flattenObject(o);
+      Object.entries(flattenedObj).forEach(([k, v]) => {
+        const r = document.createElement('tr'),
+              n = document.createElement('td'),
+              v2 = document.createElement('td');
+        n.textContent = k;
+        v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        r.append(n, v2);
+        desc.appendChild(r);
+      });
+    } else {
+      const r = document.createElement('tr'),
+            n = document.createElement('td'),
+            v2 = document.createElement('td');
+      n.textContent = 'value';
+      v2.textContent = String(o);
+      r.append(n, v2);
+      desc.appendChild(r);
     }
+    if (atBottom) detail.scrollTop = detail.scrollHeight;
   }
 
-function categorize(raw, cp){
+  function categorize(raw, cp) {
     let o;
-    try{ o=JSON.parse(raw); }catch{return;}
-    if(!Array.isArray(o)) return;
-    const t0=o[0], ts=nowTs();
-    if((t0===2 || t0===3)){
-      lastMessageTime[cp] = Date.now();
-      startNoResponseTimeout(cp);
+    try {
+      o = JSON.parse(raw);
+    } catch {
+      console.error(`Failed to parse message for ${cp}:`, raw);
+      return;
     }
-    if(t0===2){
-      const action=o[2];
-      let cmd = action;
+    if (!Array.isArray(o)) {
+      console.warn(`Invalid message format for ${cp}:`, raw);
+      return;
+    }
+    const t0 = o[0], ts = nowTs();
+    if (t0 === 2 || t0 === 3) {
+      let cmd = o[2];
       if (o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.command) {
         cmd = o[3].data.command;
+      } else if (o[2] && typeof o[2] === 'object' && o[2].data && o[2].data.command) {
+        cmd = o[2].data.command;
       }
-      if(cmd==='Heartbeat') return;
-      if(cmd === 'StatusNotification' && o[3] && o[3].status) {
-        chargerStatus[cp] = o[3].status;
-      }
-      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
-        requestCommands.add(cmd);
-        messagesByCP[cp].call = [{command:cmd,raw,ts}];
-        updateDropdown(callFilter,requestCommands);
-        setLatest(tblCall,descCall,raw,cp,'call',currentCP);
-      }
-    } else if(t0===3){
-      const p=o[2];
-      let cmd = null;
-      if(p && typeof p === 'object' && p.command) {
-        cmd = p.command;
-      } else if (p && typeof p === 'object' && p.data && p.data.command) {
-        cmd = p.data.command;
-      }
-      if (!cmd && o[2] && typeof o[2] === 'string') {
-        cmd = o[2];
-      }
-      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
-        responseCommands.add(cmd);
-        messagesByCP[cp].result = [{command:cmd,raw,ts}];
-        updateDropdown(resultFilter,responseCommands);
-        setLatest(tblResult,descResult,raw,cp,'result',currentCP);
-      } else {
-        messagesByCP[cp].result = [{command:null,raw,ts}];
-        setLatest(tblResult,descResult,raw,cp,'result',currentCP);
-      }
-    }
-  }
-
-  function updateTable(type){
-    const tbl  = type==='call'?tblCall:tblResult,
-          desc = type==='call'?descCall:descResult,
-          filter = type==='call'?callFilter.value:resultFilter.value;
-    tbl.innerHTML=''; desc.innerHTML='';
-    let latestMessages = [];
-    if (currentCP) {
-      const arr = messagesByCP[currentCP][type];
-      if (arr.length && (filter==='all' || arr[0].command===filter)) {
-        latestMessages.push({cp: currentCP, ...arr[0]});
-      }
-    } else {
-      ['CP_01', 'CP_02', 'CP_03'].forEach(cp => {
-        const arr = messagesByCP[cp][type];
-        if (arr.length && (filter==='all' || arr[0].command===filter)) {
-          latestMessages.push({cp, ...arr[0]});
+      if (cmd === 'Heartbeat') {
+        lastHeartbeatTime[cp] = Date.now();
+        console.log(`Heartbeat received for ${cp} at ${ts}, updating lastHeartbeatTime`);
+        appendLog(raw, '', cp);
+        startNoResponseTimeout(cp);
+        if (selectedCPs.includes(cp)) {
+          updateConnectionStatus();
         }
-      });
-      latestMessages.sort((a,b) => new Date(b.ts) - new Date(a.ts));
-    }
-    if(latestMessages.length) {
-      const latest = latestMessages[0];
-      setLatest(tbl,desc,latest.raw,latest.cp,type,currentCP);
+        return; // Skip heartbeat messages for tables
+      }
+      if (t0 === 2) {
+        if (cmd === 'StatusNotification' && o[3] && o[3].status) {
+          chargerStatus[cp] = o[3].status;
+        }
+        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+          requestCommands[cp].add(cmd);
+          messagesByCP[cp].call.push({ command: cmd, raw, ts });
+          if (document.getElementById(`callFilter-${cp}`)) {
+            updateDropdown(document.getElementById(`callFilter-${cp}`), requestCommands[cp]);
+          }
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'call');
+          }
+        }
+      } else if (t0 === 3) {
+        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+          responseCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          if (document.getElementById(`resultFilter-${cp}`)) {
+            updateDropdown(document.getElementById(`resultFilter-${cp}`), responseCommands[cp]);
+          }
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'result');
+          }
+        } else {
+          messagesByCP[cp].result.push({ command: null, raw, ts });
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'result');
+          }
+        }
+      }
+      console.log(`Calling updateConnectionStatus for ${cp} after message`);
+      updateConnectionStatus();
     }
   }
 
-  callFilter.addEventListener('change',()=>{
-    updateTable('call');
-  });
+  function updateTable(cp, type) {
+    if (!document.getElementById(`section-${cp}`)) return;
+    const tbl = document.getElementById(`${type}-table-${cp}`).querySelector('tbody');
+    const desc = document.getElementById(`${type}-desc-${cp}`).querySelector('tbody');
+    const filter = type === 'call' ? document.getElementById(`callFilter-${cp}`).value : document.getElementById(`resultFilter-${cp}`).value;
+    tbl.innerHTML = '';
+    desc.innerHTML = '';
+    const arr = messagesByCP[cp][type].filter(msg => filter === 'all' || msg.command === filter);
+    if (arr.length > 0) {
+      const latestMessage = arr[arr.length - 1]; // Show the latest message
+      setLatest(cp, tbl, desc, latestMessage.raw, type);
+    }
+  }
 
-  resultFilter.addEventListener('change',()=>{
-    updateTable('result');
-  });
-
-  function connect(cp){
+  function connect(cp) {
     if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
       return;
     }
     wsConnections[cp] = new WebSocket(getWebSocketUrl(cp));
     wsConnections[cp].onopen = () => {
-      lastMessageTime[cp] = Date.now();
+      lastHeartbeatTime[cp] = null;
+      console.log(`WebSocket opened for ${cp} at ${nowTs()}`);
       startNoResponseTimeout(cp);
+      if (selectedCPs.includes(cp)) {
+        updateConnectionStatus();
+        updateTable(cp, 'call');
+        updateTable(cp, 'result');
+      }
     };
     wsConnections[cp].onmessage = (ev) => {
-      if (!currentCP || cp === currentCP) {
-        appendLog(ev.data);
+      if (selectedCPs.includes(cp)) {
+        console.log(`WebSocket message received for ${cp}: ${ev.data}`);
+        appendLog(ev.data, '', cp);
+        categorize(ev.data, cp);
       }
-      categorize(ev.data, cp);
     };
     wsConnections[cp].onclose = () => {
       wsConnections[cp] = null;
@@ -1273,12 +1418,22 @@ function categorize(raw, cp){
         clearTimeout(noResponseTimeout[cp]);
         noResponseTimeout[cp] = null;
       }
-      setTimeout(() => connect(cp), 3000);
+      lastHeartbeatTime[cp] = null;
+      console.log(`WebSocket closed for ${cp} at ${nowTs()}`);
+      if (selectedCPs.includes(cp)) {
+        updateConnectionStatus();
+      }
+      setTimeout(() => {
+        if (selectedCPs.includes(cp)) {
+          connect(cp);
+        }
+      }, 3000);
     };
     wsConnections[cp].onerror = (err) => {
       console.error(`WebSocket error for ${cp}:`, err);
-      if (!currentCP || cp === currentCP) {
-        appendLog(`WebSocket error for ${cp}`, 'status');
+      if (selectedCPs.includes(cp)) {
+        appendLog(`WebSocket error for ${cp}`, 'status', cp);
+        updateConnectionStatus();
       }
     };
   }
@@ -1286,9 +1441,7 @@ function categorize(raw, cp){
   ['CP_01', 'CP_02', 'CP_03'].forEach(cp => connect(cp));
   updateActiveButton();
   updateTitle();
-  updateToggleButtons();
-  updateDropdown(callFilter, requestCommands);
-  updateDropdown(resultFilter, responseCommands);
+  updateCPContainer();
 })();
 </script>
 </body>
