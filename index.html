@@ -278,15 +278,21 @@
       padding: .5rem;
       border: 1px solid var(--border-color);
       text-align: left;
-      word-break: break-all;
+      white-space: nowrap;
     }
     th {
       background: var(--table-header-bg);
     }
     .call-table th,
     .call-desc th,
-    .result-desc th {
+    .result-desc th,
+    .result-table th {
+      text-align: left;
       white-space: nowrap;
+    }
+    .json-wrap {
+      white-space: normal;
+      overflow-wrap: break-word;
     }
     .table-footer {
       display: flex;
@@ -600,6 +606,10 @@
     </div>
   </div>
 
+  <audio id="backgroundMusic" autoplay loop>
+      <source src="/var/www/html/background.mp3" type="audio/mpeg">
+  </audio>
+
 <script>
 (function(){
   const host = location.hostname || "localhost", port = 2409;
@@ -698,6 +708,7 @@
                 <select id="resultFilter-no-cp" disabled><option value="all">All</option></select>
               </div>
               <table id="result-table-no-cp" class="result-table">
+                <thead><tr><th>Name</th><th>Value</th></tr></thead>
                 <tbody></tbody>
               </table>
               <table id="result-desc-no-cp" class="result-desc">
@@ -782,6 +793,7 @@
               <select id="resultFilter-${cp}"><option value="all">All</option></select>
             </div>
             <table id="result-table-${cp}" class="result-table">
+              <thead><tr><th>Name</th><th>Value</th></tr></thead>
               <tbody></tbody>
             </table>
             <table id="result-desc-${cp}" class="result-desc">
@@ -815,10 +827,10 @@
 
       document.getElementById(`toggleBtn${cp}`).addEventListener('click', () => handleToggle(cp));
       document.getElementById(`emergencyBtn${cp}`).addEventListener('click', () => handleEmergency(cp));
-      document.getElementById(`getBtn-${cp}`).addEventListener('click', () => handleGet(cp));
       document.getElementById(`setConverterBtn-${cp}`).addEventListener('click', () => showModal('setConverter', cp));
       document.getElementById(`setRelayBtn-${cp}`).addEventListener('click', () => showModal('setRelay', cp));
       document.getElementById(`setHMIBtn-${cp}`).addEventListener('click', () => showModal('setHMI', cp));
+      document.getElementById(`getBtn-${cp}`).addEventListener('click', () => handleGet(cp));
       document.getElementById(`getConverterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConverter', cp));
       document.getElementById(`getRelayBtn-${cp}`).addEventListener('click', () => handleGetCommand('getRelay', cp));
       document.getElementById(`getConnectorStatusBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConnectorStatus', cp));
@@ -858,6 +870,20 @@
         console.warn(`Status elements not found for ${cp}`);
       }
     });
+  }
+
+  function updateDropdown(select, commands) {
+    const currentValue = select.value;
+    select.innerHTML = '<option value="all">All</option>';
+    [...commands].sort().forEach(cmd => {
+      if (cmd !== 'all') {
+        const option = document.createElement('option');
+        option.value = cmd;
+        option.textContent = cmd;
+        select.appendChild(option);
+      }
+    });
+    select.value = currentValue;
   }
 
   function getWebSocketUrl(cp){
@@ -935,7 +961,7 @@
     document.getElementById(`toggleBtn${cp}`).textContent = toggleStates[cp];
     wsConnections[cp].send(action);
     const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = detail.scrollHeight;
+    detail.scrollTop = 0; // Keep scroll at top
   }
 
   function handleEmergency(cp) {
@@ -952,7 +978,7 @@
     wsConnections[cp].send('stop');
     showToast(`Emergency Stop for ${cp}`);
     const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = detail.scrollHeight;
+    detail.scrollTop = 0; // Keep scroll at top
   }
 
   function handleGet(cp) {
@@ -966,7 +992,7 @@
     }
     wsConnections[cp].send('get');
     const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = detail.scrollHeight;
+    detail.scrollTop = detail.scrollHeight; // Scroll to bottom
   }
 
   function handleGetCommand(command, cp) {
@@ -980,7 +1006,7 @@
     }
     wsConnections[cp].send(command);
     const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = detail.scrollHeight;
+    detail.scrollTop = detail.scrollHeight; // Scroll to bottom
   }
 
   let currentModalCommand = null;
@@ -1052,7 +1078,7 @@
     ];
     wsConnections[cp].send(JSON.stringify(message));
     const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = detail.scrollHeight;
+    detail.scrollTop = 0; // Keep scroll at top
     document.getElementById('commandModal').style.display = 'none';
   });
 
@@ -1123,6 +1149,8 @@
         label.textContent = statusSwitch.checked ? 'On' : 'Off';
       });
     }
+    const detail = document.getElementById(`detail-${cp}`);
+    detail.scrollTop = 0; // Keep scroll at top
     document.getElementById('commandModal').style.display = 'flex';
   }
 
@@ -1150,18 +1178,6 @@
     log.scrollTop = log.scrollHeight;
   }
 
-  function updateDropdown(dropdown, cmds){
-    const sel = dropdown.value;
-    dropdown.innerHTML = '';
-    cmds.forEach(c => {
-      const o = document.createElement('option');
-      o.value = c;
-      o.textContent = c;
-      dropdown.appendChild(o);
-    });
-    dropdown.value = cmds.has(sel) ? sel : 'all';
-  }
-
   function flattenObject(obj, parent = '', res = {}) {
     for (let key in obj) {
       if (obj.hasOwnProperty(key)) {
@@ -1183,41 +1199,24 @@
     tbl.innerHTML = '';
     desc.innerHTML = '';
 
-    if (type === 'call') {
-      // For request table: Name and Value format
-      const row1 = document.createElement('tr'),
-            td1_label = document.createElement('td'),
-            td1_value = document.createElement('td');
-      td1_label.textContent = 'Timestamp';
-      td1_value.innerHTML = `<span class="ts">${nowTs()}</span>`;
-      row1.append(td1_label, td1_value);
-      tbl.append(row1);
+    // Add Timestamp row
+    const row1 = document.createElement('tr'),
+          td1_label = document.createElement('td'),
+          td1_value = document.createElement('td');
+    td1_label.textContent = 'Timestamp';
+    td1_value.innerHTML = `<span class="ts">${nowTs()}</span>`;
+    row1.append(td1_label, td1_value);
+    tbl.append(row1);
 
-      const rowJson = document.createElement('tr'),
-            tdJson_label = document.createElement('td'),
-            tdJson_value = document.createElement('td');
-      tdJson_label.textContent = 'Raw JSON';
-      tdJson_value.textContent = raw;
-      rowJson.append(tdJson_label, tdJson_value);
-      tbl.append(rowJson);
-    } else {
-      // For response table: Original format (no headers, just Timestamp and Raw JSON)
-      const row1 = document.createElement('tr'),
-            td1_label = document.createElement('td'),
-            td1_value = document.createElement('td');
-      td1_label.textContent = 'Timestamp';
-      td1_value.innerHTML = `<span class="ts">${nowTs()}</span>`;
-      row1.append(td1_label, td1_value);
-      tbl.append(row1);
-
-      const rowJson = document.createElement('tr'),
-            tdJson_label = document.createElement('td'),
-            tdJson_value = document.createElement('td');
-      tdJson_label.textContent = 'Raw JSON';
-      tdJson_value.textContent = raw;
-      rowJson.append(tdJson_label, tdJson_value);
-      tbl.append(rowJson);
-    }
+    // Add Raw JSON row
+    const rowJson = document.createElement('tr'),
+          tdJson_label = document.createElement('td'),
+          tdJson_value = document.createElement('td');
+    tdJson_label.textContent = 'Raw JSON';
+    tdJson_value.className = 'json-wrap';
+    tdJson_value.textContent = raw;
+    rowJson.append(tdJson_label, tdJson_value);
+    tbl.append(rowJson);
 
     let o;
     try {
@@ -1339,6 +1338,13 @@
           updateConnectionStatus();
         }
         return; // Skip heartbeat messages for tables
+      }
+      if (cmd === 'StopTransaction') {
+        toggleStates[cp] = 'Start';
+        document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+      } else if (cmd === 'StartTransaction') {
+        toggleStates[cp] = 'Stop';
+        document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
       }
       if (t0 === 2) {
         if (cmd === 'StatusNotification' && o[3] && o[3].status) {
