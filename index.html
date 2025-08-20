@@ -1,4 +1,4 @@
-https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -336,6 +336,12 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
       cursor: pointer;
       font-size: 1rem;
     }
+    .toggle-btn.stop {
+      background: var(--emergency-btn-bg);
+    }
+    .toggle-btn.stop:hover {
+      background: var(--emergency-btn-hover);
+    }
     .get-converter-btn,
     .set-converter-btn,
     .set-relay-btn,
@@ -606,6 +612,13 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="modal" id="warningModal">
+    <div class="modal-content">
+      <div class="modal-header">Warning</div>
+      <div class="modal-body">Shutdown... <span id="countdown">10</span></div>
+    </div>
+  </div>
+
   <audio id="backgroundMusic" autoplay loop>
       <source src="/var/www/html/background.mp3" type="audio/mpeg">
   </audio>
@@ -635,6 +648,7 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
     'CP_02': { call: [], result: [] },
     'CP_03': { call: [], result: [] }
   };
+  let chargingStatusTimeouts = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
 
   function showToast(message) {
     let toast = document.querySelector('.toast');
@@ -734,13 +748,13 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
               </div>
             </div>
             <div id="log-no-cp" class="log">
-              <div class="entry status"><span class="ts">${nowTs()}</span><span class="msg">Please select a CP to view data</span></div>
+              <div class="entry status"><span class="ts">${nowTs()}</span><span class="msg">Please select CP to view data</span></div>
             </div>
           </div>
         </div>
       `;
       ['setConverterBtn-no-cp', 'setRelayBtn-no-cp', 'setHMIBtn-no-cp', 'toggleBtn-no-cp', 'getConverterBtn-no-cp', 'getRelayBtn-no-cp', 'getConnectorStatusBtn-no-cp', 'getEVInfoBtn-no-cp', 'getMeterBtn-no-cp', 'getTemperatureBtn-no-cp', 'getBtn-no-cp'].forEach(id => {
-        document.getElementById(id).addEventListener('click', () => showToast('Please select a CP'));
+        document.getElementById(id).addEventListener('click', () => showToast('Please select CP'));
       });
       return;
     }
@@ -784,7 +798,7 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
                 <button id="setHMIBtn-${cp}" class="set-hmi-btn">SetHMI</button>
               </div>
               <div class="toggle-container">
-                <button id="toggleBtn${cp}" class="toggle-btn" data-cp="${cp}">${toggleStates[cp]}</button>
+                <button id="toggleBtn${cp}" class="toggle-btn ${toggleStates[cp] === 'Stop' ? 'stop' : ''}" data-cp="${cp}">${toggleStates[cp]}</button>
               </div>
             </div>
             <div class="subheader">Response</div>
@@ -943,6 +957,96 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
     document.getElementById('modeToggleBtn').title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
   });
 
+  function handleShutdown(cp, isEmergency = false) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      return;
+    }
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
+      return;
+    }
+
+    // Show warning modal with countdown
+    const warningModal = document.getElementById('warningModal');
+    const countdownElement = document.getElementById('countdown');
+    warningModal.style.display = 'flex';
+    
+    // Disable all interactive elements
+    document.querySelectorAll('button, select, input').forEach(el => {
+      el.disabled = true;
+      el.classList.add('disabled-btn');
+    });
+
+    let countdown = 10;
+    countdownElement.textContent = countdown;
+
+    // Send Stop and SetConverter off immediately
+    wsConnections[cp].send('stop');
+    const stopConverterMessage = [
+      2,
+      ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+        (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+      ),
+      "DataTransfer",
+      {
+        "vendorId": "Totex",
+        "messageId": 1,
+        "data": {
+          command: "SetConverter",
+          payload: { ChargerID: cp, Status: "Off", Voltage: 0, Current: 0 }
+        }
+      }
+    ];
+    wsConnections[cp].send(JSON.stringify(stopConverterMessage));
+    lastSettings[cp].setConverter = { Status: "Off", Voltage: 0, Current: 0 };
+
+    // Send SetRelay off after 5 seconds
+    setTimeout(() => {
+      const stopRelayMessage = [
+        2,
+        ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+          (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+        ),
+        "DataTransfer",
+        {
+          "vendorId": "Totex",
+          "messageId": 1,
+          "data": {
+            command: "SetRelay",
+            payload: { ChargerID: cp, Status: "Off" }
+          }
+        }
+      ];
+      wsConnections[cp].send(JSON.stringify(stopRelayMessage));
+      lastSettings[cp].setRelay = { Status: "Off" };
+    }, 5000);
+
+    // Update toggle button state
+    toggleStates[cp] = 'Start';
+    document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+    document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+
+    // Countdown timer
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      countdownElement.textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(countdownInterval);
+        warningModal.style.display = 'none';
+        // Re-enable all interactive elements
+        document.querySelectorAll('button, select, input').forEach(el => {
+          el.disabled = false;
+          el.classList.remove('disabled-btn');
+        });
+      }
+    }, 1000);
+
+    showToast(isEmergency ? `Emergency Stop for ${cp}` : `Stop for ${cp}`);
+    const detail = document.getElementById(`detail-${cp}`);
+    detail.scrollTop = 0; // Keep scroll at top
+  }
+
   function handleToggle(cp) {
     if (!selectedCPs.includes(cp)) {
       showToast(`Please select ${cp} in nav`);
@@ -957,28 +1061,31 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
       showToast(`Charger ${cp} not ready`);
       return;
     }
-    toggleStates[cp] = action === 'start' ? 'Stop' : 'Start';
-    document.getElementById(`toggleBtn${cp}`).textContent = toggleStates[cp];
-    wsConnections[cp].send(action);
-    const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = 0; // Keep scroll at top
+    if (action === 'stop') {
+      handleShutdown(cp, false);
+    } else {
+      toggleStates[cp] = 'Stop';
+      document.getElementById(`toggleBtn${cp}`).textContent = toggleStates[cp];
+      document.getElementById(`toggleBtn${cp}`).classList.toggle('stop', toggleStates[cp] === 'Stop');
+      wsConnections[cp].send(action);
+      
+      // Start timeout to check for Charging status
+      chargingStatusTimeouts[cp] = setTimeout(() => {
+        if (chargerStatus[cp] !== 'Charging') {
+          toggleStates[cp] = 'Start';
+          document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+          document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+          showToast(`Not charging status for ${cp}`);
+        }
+      }, 3000);
+
+      const detail = document.getElementById(`detail-${cp}`);
+      detail.scrollTop = 0; // Keep scroll at top
+    }
   }
 
   function handleEmergency(cp) {
-    if (!selectedCPs.includes(cp)) {
-      showToast(`Please select ${cp} in nav`);
-      return;
-    }
-    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
-      showToast(`No connection to ${cp}`);
-      return;
-    }
-    toggleStates[cp] = 'Start';
-    document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
-    wsConnections[cp].send('stop');
-    showToast(`Emergency Stop for ${cp}`);
-    const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = 0; // Keep scroll at top
+    handleShutdown(cp, true);
   }
 
   function handleGet(cp) {
@@ -1342,13 +1449,21 @@ https://youtu.be/9TuN2I_lXLA?si=xndqyUlGgoiWPxU7<!DOCTYPE html>
       if (cmd === 'StopTransaction') {
         toggleStates[cp] = 'Start';
         document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+        document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+        showToast(`Received StopTransaction from ${cp}`);
       } else if (cmd === 'StartTransaction') {
         toggleStates[cp] = 'Stop';
         document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
+        document.getElementById(`toggleBtn${cp}`).classList.add('stop');
       }
       if (t0 === 2) {
         if (cmd === 'StatusNotification' && o[3] && o[3].status) {
           chargerStatus[cp] = o[3].status;
+          // Check if status is Charging and clear timeout if exists
+          if (o[3].status === 'Charging' && chargingStatusTimeouts[cp]) {
+            clearTimeout(chargingStatusTimeouts[cp]);
+            chargingStatusTimeouts[cp] = null;
+          }
         }
         if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
           requestCommands[cp].add(cmd);
