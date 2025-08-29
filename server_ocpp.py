@@ -127,7 +127,7 @@ async def handler(websocket, path=None):  # Remove default path
                     "DataTransfer",
                     {
                         "vendorId": "Totex",
-                        "messageId": 1,
+                        "messageId": "1",
                         "data": {"command": action, "payload": payload}
                     }
                 ]
@@ -246,14 +246,14 @@ async def handler(websocket, path=None):  # Remove default path
                             print(f"[{ts}] ⚠️ Invalid DataTransfer data JSON, skipping")
                             continue
                     # Now data should be a dict
-                    if isinstance(data, dict) and data.get("command") in ["SetConverter", "SetRelay", "SetHMI"]:
+                    if isinstance(data, dict) and data.get("command") in ["SetConverter", "SetRelay", "SetHMI", "SetLED"]:
                         wss_call = [
                             2,  # Changed to CALL to match client expectation
                             unique_id,
                             "DataTransfer",
                             {
                                 "vendorId": "Totex",
-                                "messageId": 1,
+                                "messageId": "1",
                                 "data": {
                                     "command": data["command"],
                                     "payload": data.get("payload", {})
