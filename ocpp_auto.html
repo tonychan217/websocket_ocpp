@@ -965,6 +965,7 @@
     latestEVInfo[cp] = null;
     chargerStatus[cp] = '';
     toggleStates[cp] = 'Start';
+    selectedCPs = [];
     if (document.getElementById(`toggleBtn${cp}`)) {
       document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
       document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
@@ -974,6 +975,9 @@
     }
     updateTable(cp, 'call');
     updateTable(cp, 'result');
+    updateActiveButton();
+    updateTitle();
+    updateCPContainer();
   }
 
   function handleShutdown(cp, isEmergency = false) {
@@ -1910,63 +1914,65 @@
   }
 
   function connect(cp) {
-    if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
-      return;
-    }
-    wsConnections[cp] = new WebSocket(getWebSocketUrl(cp));
-    wsConnections[cp].onopen = () => {
-      lastHeartbeatTime[cp] = null;
-      console.log(`WebSocket opened for ${cp} at ${nowTs()}`);
-      startNoResponseTimeout(cp);
-      if (selectedCPs.includes(cp)) {
-        updateConnectionStatus();
-        updateTable(cp, 'call');
-        updateTable(cp, 'result');
-      }
-    };
-    wsConnections[cp].onmessage = (ev) => {
-      if (selectedCPs.includes(cp)) {
-        console.log(`WebSocket message received for ${cp}: ${ev.data}`);
-        appendLog(ev.data, '', cp);
-        categorize(ev.data, cp);
-      }
-    };
-    wsConnections[cp].onclose = () => {
-      wsConnections[cp] = null;
-      if (noResponseTimeout[cp]) {
-        clearTimeout(noResponseTimeout[cp]);
-        noResponseTimeout[cp] = null;
-      }
-      lastHeartbeatTime[cp] = null;
-      console.log(`WebSocket closed for ${cp} at ${nowTs()}`);
-      if (selectedCPs.includes(cp)) {
-        updateConnectionStatus();
-      }
-      stopPolling(cp);
-      stopSetConverterInterval(cp);
-      stopSetRelayInterval(cp);
-      setTimeout(() => {
-        if (selectedCPs.includes(cp)) {
-          connect(cp);
-        }
-      }, 3000);
-    };
-    wsConnections[cp].onerror = (err) => {
-      console.error(`WebSocket error for ${cp}:`, err);
-      if (selectedCPs.includes(cp)) {
-        appendLog(`WebSocket error for ${cp}`, 'status', cp);
-        updateConnectionStatus();
-      }
-    };
+  // Check if there's an existing WebSocket connection that is open or connecting
+  if (wsConnections[cp] && (wsConnections[cp].readyState === WebSocket.OPEN || wsConnections[cp].readyState === WebSocket.CONNECTING)) {
+    console.log(`WebSocket already open or connecting for ${cp} at ${nowTs()}`);
+    return;
   }
 
-  ['CP_01', 'CP_02', 'CP_03'].forEach(cp => {
-    switchCP(cp);
-    connect(cp);
-  });
-  updateActiveButton();
-  updateTitle();
-  updateCPContainer();
+  wsConnections[cp] = new WebSocket(getWebSocketUrl(cp));
+  wsConnections[cp].onopen = () => {
+    lastHeartbeatTime[cp] = null;
+    console.log(`WebSocket opened for ${cp} at ${nowTs()}`);
+    startNoResponseTimeout(cp);
+    if (selectedCPs.includes(cp)) {
+      updateConnectionStatus();
+      updateTable(cp, 'call');
+      updateTable(cp, 'result');
+    }
+  };
+  wsConnections[cp].onmessage = (ev) => {
+    if (selectedCPs.includes(cp)) {
+      console.log(`WebSocket message received for ${cp}: ${ev.data}`);
+      appendLog(ev.data, '', cp);
+      categorize(ev.data, cp);
+    }
+  };
+  wsConnections[cp].onclose = () => {
+    wsConnections[cp] = null;
+    if (noResponseTimeout[cp]) {
+      clearTimeout(noResponseTimeout[cp]);
+      noResponseTimeout[cp] = null;
+    }
+    lastHeartbeatTime[cp] = null;
+    console.log(`WebSocket closed for ${cp} at ${nowTs()}`);
+    if (selectedCPs.includes(cp)) {
+      updateConnectionStatus();
+    }
+    stopPolling(cp);
+    stopSetConverterInterval(cp);
+    stopSetRelayInterval(cp);
+    setTimeout(() => {
+      if (selectedCPs.includes(cp)) {
+        connect(cp);
+      }
+    }, 3000);
+  };
+  wsConnections[cp].onerror = (err) => {
+    console.error(`WebSocket error for ${cp}:`, err);
+    if (selectedCPs.includes(cp)) {
+      appendLog(`WebSocket error for ${cp}`, 'status', cp);
+      updateConnectionStatus();
+    }
+  };
+}
+selectedCPs = ['CP_01', 'CP_02', 'CP_03'];
+['CP_01', 'CP_02', 'CP_03'].forEach(cp => {
+  connect(cp);
+});
+updateActiveButton();
+updateTitle();
+updateCPContainer();
 })();
 </script>
 </body>
