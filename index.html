@@ -38,6 +38,7 @@
       --request-nav-bg: #fff;
       --disabled-btn-bg: #cccccc;
       --disabled-btn-text: #666666;
+      --set-btn-on: #28a745;
     }
     :root.dark-mode {
       --bg-color: #1a1a1a;
@@ -71,6 +72,7 @@
       --request-nav-bg: #333;
       --disabled-btn-bg: #555555;
       --disabled-btn-text: #999999;
+      --set-btn-on: #28a745;
     }
     body {
       margin: 0;
@@ -98,7 +100,7 @@
       gap: 0.5rem;
       align-items: center;
     }
-    .suffix-btn, .emergency-all-btn {
+    .suffix-btn {
       background: var(--button-bg);
       color: var(--button-text);
       border: none;
@@ -110,12 +112,6 @@
     .suffix-btn.active {
       background: #0056b3;
       font-weight: bold;
-    }
-    .emergency-all-btn {
-      background: var(--emergency-btn-bg);
-    }
-    .emergency-all-btn:hover {
-      background: var(--emergency-btn-hover);
     }
     .mode-toggle {
       margin-left: 1rem;
@@ -366,6 +362,18 @@
       cursor: pointer;
       font-size: 1rem;
     }
+    .set-converter-btn.on,
+    .set-relay-btn.on,
+    .set-hmi-btn.on,
+    .set-led-btn.on {
+      border: 3px solid var(--set-btn-on);
+      font-weight: bold;
+      animation: flash 1s infinite;
+    }
+    @keyframes flash {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
     .emergency-btn {
       background: var(--emergency-btn-bg);
       color: var(--button-text);
@@ -584,6 +592,9 @@
     :root.dark-mode .toast {
       background: #555;
     }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -592,10 +603,13 @@
       OCPP WSS Center –> <span id="currentCP"></span>
     </div>
     <div class="navbar-buttons">
-      <button class="emergency-all-btn" id="emergencyAllBtn">Emergency Stop</button>
+      <button class="emergency-btn" id="emergencyBtnAll">Emergency Stop</button>
       <button class="suffix-btn" id="cp01Btn" onclick="switchCP('CP_01')">CP_01</button>
       <button class="suffix-btn" id="cp02Btn" onclick="switchCP('CP_02')">CP_02</button>
       <button class="suffix-btn" id="cp03Btn" onclick="switchCP('CP_03')">CP_03</button>
+      <button class="suffix-btn" id="cp04Btn" onclick="switchCP('CP_04')">CP_04</button>
+      <button class="suffix-btn" id="cp05Btn" onclick="switchCP('CP_05')">CP_05</button>
+      <button class="suffix-btn" id="cp06Btn" onclick="switchCP('CP_06')">CP_06</button>
       <button class="mode-toggle" id="modeToggleBtn" title="Switch to Dark Mode">
         <svg class="icon moon" viewBox="0 0 24 24">
           <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
@@ -625,49 +639,52 @@
   <div class="modal" id="warningModal">
     <div class="modal-content">
       <div class="modal-header">Warning</div>
-      <div class="modal-body">Shutdown... <span id="countdown">10</span></div>
+      <div class="modal-body">Shutdown... <span id="countdown">5</span></div>
     </div>
   </div>
-
-  <audio id="backgroundMusic" autoplay loop>
-      <source src="/var/www/html/background.mp3" type="audio/mpeg">
-  </audio>
 
 <script>
 (function(){
   const host = location.hostname || "localhost", port = 2409;
   let selectedCPs = [];
-  let chargerStatus = { 'CP_01': '', 'CP_02': '', 'CP_03': '' };
-  let toggleStates = { 'CP_01': 'Start', 'CP_02': 'Start', 'CP_03': 'Start', 'no-cp': 'Start' };
-  let lastHeartbeatTime = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
-  let noResponseTimeout = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
+  let chargerStatus = { 'CP_01': '', 'CP_02': '', 'CP_03': '', 'CP_04': '', 'CP_05': '', 'CP_06': ''  };
+  let toggleStates = { 'CP_01': 'Start', 'CP_02': 'Start', 'CP_03': 'Start','CP_04': 'Start', 'CP_05': 'Start', 'CP_06': 'Start', 'no-cp': 'Start' };
+  let lastHeartbeatTime = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null };
+  let noResponseTimeout = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null  };
   const wsConnections = {
     'CP_01': null,
     'CP_02': null,
-    'CP_03': null
+    'CP_03': null,
+    'CP_04': null,
+    'CP_05': null,
+    'CP_06': null
   };
   const lastSettings = {
-    'CP_01': { setConverter: null, setRelay: null, setHMI: null, setLED: null },
+    'CP_01': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
     'CP_02': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
-    'CP_03': { setConverter: null, setRelay: null, setHMI: null, setLED: null  }
+    'CP_03': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_04': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_05': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_06': { setConverter: null, setRelay: null, setHMI: null, setLED: null  }
   };
-  const requestCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']) };
-  const responseCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']) };
+  const requestCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const responseCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getEVInfoCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getConverterCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getRelayCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getConnectorStatusCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getMeterCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getTemperatureCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getSystemErrorCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
   const messagesByCP = {
     'CP_01': { call: [], result: [] },
     'CP_02': { call: [], result: [] },
-    'CP_03': { call: [], result: [] }
+    'CP_03': { call: [], result: [] },
+    'CP_04': { call: [], result: [] },
+    'CP_05': { call: [], result: [] },
+    'CP_06': { call: [], result: [] }
   };
-  let chargingStatusTimeouts = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
-  let pollingIntervals = {
-    'CP_01': { evInfo: null, others: null, othersIndex: 0 },
-    'CP_02': { evInfo: null, others: null, othersIndex: 0 },
-    'CP_03': { evInfo: null, others: null, othersIndex: 0 }
-  };
-  let setConverterIntervals = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
-  let setRelayIntervals = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
-  let latestEVInfo = { 'CP_01': null, 'CP_02': null, 'CP_03': null };
-  const otherGetCommands = ['getConverter', 'getRelay', 'getConnectorStatus', 'getMeter', 'getTemperature'];
+  let chargingStatusTimeouts = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null };
 
   function showToast(message) {
     let toast = document.querySelector('.toast');
@@ -688,141 +705,213 @@
     document.getElementById('cp01Btn').classList.toggle('active', selectedCPs.includes('CP_01'));
     document.getElementById('cp02Btn').classList.toggle('active', selectedCPs.includes('CP_02'));
     document.getElementById('cp03Btn').classList.toggle('active', selectedCPs.includes('CP_03'));
+    document.getElementById('cp04Btn').classList.toggle('active', selectedCPs.includes('CP_04'));
+    document.getElementById('cp05Btn').classList.toggle('active', selectedCPs.includes('CP_05'));
+    document.getElementById('cp06Btn').classList.toggle('active', selectedCPs.includes('CP_06'));
   }
 
   function updateTitle(){
     document.getElementById('currentCP').textContent = selectedCPs.length > 0 ? selectedCPs.join(', ') : 'No CP Selected';
   }
 
-  function updateCPContainer(){
+  function updateButtonStates(cp) {
+    const setConverterBtn = document.getElementById(`setConverterBtn-${cp}`);
+    const setRelayBtn = document.getElementById(`setRelayBtn-${cp}`);
+    const setHMIBtn = document.getElementById(`setHMIBtn-${cp}`);
+    const setLEDBtn = document.getElementById(`setLEDBtn-${cp}`);
+    
+    if (setConverterBtn) {
+      setConverterBtn.classList.toggle('on', lastSettings[cp].setConverter?.Status === 'On');
+    }
+    if (setRelayBtn) {
+      setRelayBtn.classList.toggle('on', lastSettings[cp].setRelay?.Status === 'On');
+    }
+    if (setHMIBtn) {
+      setHMIBtn.classList.toggle('on', !!lastSettings[cp].setHMI?.Status);
+    }
+    if (setLEDBtn) {
+      setLEDBtn.classList.toggle('on', lastSettings[cp].setLED?.Status === 'On');
+    }
+  }
+
+  function updateCPContainer() {
     const cpContainer = document.getElementById('cpContainer');
     cpContainer.innerHTML = '';
 
     if (selectedCPs.length === 0) {
-      cpContainer.innerHTML = `
-        <div class="cp-section" id="section-no-cp">
-          <div class="content">
-            <div class="detail" id="detail-no-cp">
-              <div class="request-nav">
-                <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                  <div class="status">
-                    <span>Connection Status: </span>
-                    <span class="status">
-                      <span class="status-indicator disconnected"></span>
-                      <span id="connectionStatus-no-cp">No CP Selected</span>
-                    </span>
-                  </div>
-                  <div class="button-row">
-                    <span>Charge Status: </span>
-                    <span id="chargeStatus-no-cp">N/A</span>
-                  </div>
-                  <div class="button-row">
-                    <button id="setConverterBtn-no-cp" class="set-converter-btn">SetConverter</button>
-                    <button id="setRelayBtn-no-cp" class="set-relay-btn">SetRelay</button>
-                    <button id="setHMIBtn-no-cp" class="set-hmi-btn">SetHMI</button>
-                    <button id="setLEDBtn-no-cp" class="set-led-btn">SetLED</button>
-                  </div>
-                  <div class="button-row">
-                    <button id="getConverterBtn-no-cp" class="get-converter-btn">GetConverter</button>
-                    <button id="getRelayBtn-no-cp" class="get-relay-btn">GetRelay</button>
-                    <button id="getConnectorStatusBtn-no-cp" class="get-connector-status-btn">GetConnectorStatus</button>
-                  </div>
-                  <div class="button-row">
-                    <button id="getEVInfoBtn-no-cp" class="get-ev-info-btn">GetEVInfo</button>
-                    <button id="getMeterBtn-no-cp" class="get-meter-btn">GetMeter</button>
-                    <button id="getTemperatureBtn-no-cp" class="get-temperature-btn">GetTemperature</button>
-                  </div>
+        cpContainer.innerHTML = `
+            <div class="cp-section" id="section-no-cp">
+                <div class="content">
+                    <div class="detail" id="detail-no-cp">
+                        <div class="request-nav">
+                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                                <div class="status">
+                                    <span class="status">
+                                        <span class="status-indicator disconnected"></span>
+                                        <span id="connectionStatus-no-cp">No CP Selected</span>
+                                    </span>
+                                </div>
+                                <div class="button-row">
+                                    <span></span><span>&nbsp;&nbsp;Charge Status: </span>
+                                    <span id="chargeStatus-no-cp">N/A</span>
+                                </div>
+                                <div class="button-row">
+                                    <button id="setConverterBtn-no-cp" class="set-converter-btn">SetConverter</button>
+                                    <button id="setRelayBtn-no-cp" class="set-relay-btn">SetRelay</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="setHMIBtn-no-cp" class="set-hmi-btn">SetHMI</button>
+                                    <button id="setLEDBtn-no-cp" class="set-led-btn">SetLED</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="getConverterBtn-no-cp" class="get-converter-btn hidden">GetConverter</button>
+                                    <button id="getRelayBtn-no-cp" class="get-relay-btn hidden">GetRelay</button>
+                                    <button id="getConnectorStatusBtn-no-cp" class="get-connector-status-btn hidden">GetConnectorStatus</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="getEVInfoBtn-no-cp" class="get-ev-info-btn hidden">GetEVInfo</button>
+                                    <button id="getMeterBtn-no-cp" class="get-meter-btn hidden">GetMeter</button>
+                                    <button id="getTemperatureBtn-no-cp" class="get-temperature-btn hidden">GetTemperature</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="getSystemErrorBtn-no-cp" class="get-system-error-btn hidden">GetSystemError</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="toggleBtn-no-cp" class="toggle-btn">Start</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="subheader">GetEVInfo</div>
+                        <table id="getEVInfo-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetConverter</div>
+                        <table id="getConverter-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetRelay</div>
+                        <table id="getRelay-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetConnectorStatus</div>
+                        <table id="getConnectorStatus-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetMeter</div>
+                        <table id="getMeter-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetTemperature</div>
+                        <table id="getTemperature-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetSystemError</div>
+                        <table id="getSystemError-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
-              </div>
-              <div class="subheader">
-                Request
-              </div>
-              <table id="call-desc-no-cp" class="call-desc">
-                <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                <tbody></tbody>
-              </table>
-              <div class="subheader">Response</div>
-              <table id="result-desc-no-cp" class="result-desc">
-                <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                <tbody></tbody>
-              </table>
             </div>
-            <div id="log-no-cp" class="log">
-              <div class="entry status"><span class="ts">${nowTs()}</span><span class="msg">Please select CP to view data</span></div>
-            </div>
-          </div>
-        </div>
-      `;
-      ['setConverterBtn-no-cp', 'setRelayBtn-no-cp', 'setHMIBtn-no-cp', 'setLEDBtn-no-cp', 'toggleBtn-no-cp', 'getConverterBtn-no-cp', 'getRelayBtn-no-cp', 'getConnectorStatusBtn-no-cp', 'getEVInfoBtn-no-cp', 'getMeterBtn-no-cp', 'getTemperatureBtn-no-cp'].forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-          element.addEventListener('click', () => showToast('Please select CP'));
-        }
-      });
-      return;
+        `;
+        ['setConverterBtn-no-cp', 'setRelayBtn-no-cp', 'setHMIBtn-no-cp', 'setLEDBtn-no-cp', 'toggleBtn-no-cp', 
+         'getConverterBtn-no-cp', 'getRelayBtn-no-cp', 'getConnectorStatusBtn-no-cp', 'getEVInfoBtn-no-cp', 
+         'getMeterBtn-no-cp', 'getTemperatureBtn-no-cp', 'getSystemErrorBtn-no-cp'].forEach(id => {
+            document.getElementById(id).addEventListener('click', () => showToast('Please select CP'));
+        });
+        return;
     }
 
     selectedCPs.forEach(cp => {
-      const cpSection = document.createElement('div');
-      cpSection.className = 'cp-section';
-      cpSection.id = `section-${cp}`;
-      cpSection.innerHTML = `
-        <div class="content">
-          <div class="detail" id="detail-${cp}">
-            <div class="request-nav">
-              <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                <div class="status">
-                  <span>Connection Status: </span>
-                  <span class="status">
-                    <span class="status-indicator" id="connectionIndicator-${cp}"></span>
-                    <span id="connectionStatus-${cp}">${wsConnections[cp]?.readyState === WebSocket.OPEN ? `Connected to ${cp}` : `Disconnected from ${cp}`}</span>
-                  </span>
+        const cpSection = document.createElement('div');
+        cpSection.className = 'cp-section';
+        cpSection.id = `section-${cp}`;
+        cpSection.innerHTML = `
+            <div class="content">
+                <div class="detail" id="detail-${cp}">
+                    <div class="request-nav">
+                        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                            <div class="status">
+                                <span class="status">
+                                    <span class="status-indicator" id="connectionIndicator-${cp}"></span>
+                                    <span id="connectionStatus-${cp}">${wsConnections[cp]?.readyState === WebSocket.OPEN ? `Connected to ${cp}` : `Disconnected from ${cp}`}</span>
+                                </span>
+                            </div>
+                            <div class="button-row">
+                                <span></span><span>&nbsp;&nbsp;Charge Status: </span>
+                                <span id="chargeStatus-${cp}">${chargerStatus[cp] || 'N/A'}</span>
+                            </div>
+                            <div class="button-row">
+                                <button id="setConverterBtn-${cp}" class="set-converter-btn">SetConverter</button>
+                                <button id="setRelayBtn-${cp}" class="set-relay-btn">SetRelay</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="setHMIBtn-${cp}" class="set-hmi-btn">SetHMI</button>
+                                <button id="setLEDBtn-${cp}" class="set-led-btn">SetLED</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="getConverterBtn-${cp}" class="get-converter-btn hidden">GetConverter</button>
+                                <button id="getRelayBtn-${cp}" class="get-relay-btn hidden">GetRelay</button>
+                                <button id="getConnectorStatusBtn-${cp}" class="get-connector-status-btn hidden">GetConnectorStatus</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="getEVInfoBtn-${cp}" class="get-ev-info-btn hidden">GetEVInfo</button>
+                                <button id="getMeterBtn-${cp}" class="get-meter-btn hidden">GetMeter</button>
+                                <button id="getTemperatureBtn-${cp}" class="get-temperature-btn hidden">GetTemperature</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="getSystemErrorBtn-${cp}" class="get-system-error-btn hidden">GetSystemError</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="toggleBtn${cp}" class="toggle-btn ${toggleStates[cp] === 'Stop' ? 'stop' : ''}" data-cp="${cp}">${toggleStates[cp]}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subheader">GetEVInfo</div>
+                    <table id="getEVInfo-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetConverter</div>
+                    <table id="getConverter-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetRelay</div>
+                    <table id="getRelay-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetConnectorStatus</div>
+                    <table id="getConnectorStatus-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetMeter</div>
+                    <table id="getMeter-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetTemperature</div>
+                    <table id="getTemperature-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetSystemError</div>
+                    <table id="getSystemError-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
-                <div class="button-row">
-                  <span>Charge Status: </span>
-                  <span id="chargeStatus-${cp}">${chargerStatus[cp] || 'N/A'}</span>
-                  <span id="mainLabel-${cp}" style="margin-left: 5px;"></span>
-                </div>
-                <div class="button-row">
-                  <button id="setConverterBtn-${cp}" class="set-converter-btn">SetConverter</button>
-                  <button id="setRelayBtn-${cp}" class="set-relay-btn">SetRelay</button>
-                  <button id="setHMIBtn-${cp}" class="set-hmi-btn">SetHMI</button>
-                  <button id="setLEDBtn-${cp}" class="set-led-btn">SetLED</button>
-                </div>
-                <div class="button-row">
-                  <button id="getConverterBtn-${cp}" class="get-converter-btn">GetConverter</button>
-                  <button id="getRelayBtn-${cp}" class="get-relay-btn">GetRelay</button>
-                  <button id="getConnectorStatusBtn-${cp}" class="get-connector-status-btn">GetConnectorStatus</button>
-                </div>
-                <div class="button-row">
-                  <button id="getEVInfoBtn-${cp}" class="get-ev-info-btn">GetEVInfo</button>
-                  <button id="getMeterBtn-${cp}" class="get-meter-btn">GetMeter</button>
-                  <button id="getTemperatureBtn-${cp}" class="get-temperature-btn">GetTemperature</button>
-                </div>
-              </div>
-              <div class="button-group" id="buttonGroup-${cp}">
-                <button id="toggleBtn${cp}" class="toggle-btn ${toggleStates[cp] === 'Stop' ? 'stop' : ''}" data-cp="${cp}">${toggleStates[cp]}</button>
-              </div>
             </div>
-            <div class="subheader">
-              Request
-            </div>
-            <table id="call-desc-${cp}" class="call-desc">
-              <thead><tr><th>Name</th><th>Value</th></tr></thead>
-              <tbody></tbody>
-            </table>
-            <div class="subheader">Response</div>
-            <table id="result-desc-${cp}" class="result-desc">
-              <thead><tr><th>Name</th><th>Value</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div id="log-${cp}" class="log">
-            <div class="entry status"><span class="ts">${nowTs()}</span><span class="msg">Connecting to ${cp}…</span></div>
-          </div>
-        </div>
-      `;
-      cpContainer.appendChild(cpSection);
+        `;
+        cpContainer.appendChild(cpSection);
 
       document.getElementById(`toggleBtn${cp}`).addEventListener('click', () => handleToggle(cp));
       document.getElementById(`setConverterBtn-${cp}`).addEventListener('click', () => showModal('setConverter', cp));
@@ -835,10 +924,8 @@
       document.getElementById(`getEVInfoBtn-${cp}`).addEventListener('click', () => handleGetCommand('getEVInfo', cp));
       document.getElementById(`getMeterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getMeter', cp));
       document.getElementById(`getTemperatureBtn-${cp}`).addEventListener('click', () => handleGetCommand('getTemperature', cp));
-
-      updateTable(cp, 'call');
-      updateTable(cp, 'result');
-      updateButtonVisibility(cp);
+      document.getElementById(`getSystemErrorBtn-${cp}`).addEventListener('click', () => handleGetCommand('getSystemError', cp));
+      updateButtonStates(cp);
     });
 
     updateConnectionStatus();
@@ -872,11 +959,6 @@
   }
 
   function startNoResponseTimeout(cp) {
-    // Check if charger is in Charging state and was previously disconnected
-    if (chargerStatus[cp] === 'Charging' && !lastHeartbeatTime[cp]) {
-        handleEmergencyStop(cp);
-        updateConnectionStatus();
-    }
     if (noResponseTimeout[cp]) {
       clearTimeout(noResponseTimeout[cp]);
     }
@@ -896,7 +978,6 @@
   }
 
   window.switchCP = function(cp){
-    // Prevent switching if any selected CP is not in Available state
     if (selectedCPs.some(c => chargerStatus[c] === 'Charging')) {
       showToast('Not allow to switch CP during Charging');
       return;
@@ -913,7 +994,7 @@
       }
     });
 
-    ['CP_01', 'CP_02', 'CP_03'].forEach(otherCP => {
+    ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'].forEach(otherCP => {
       if (!selectedCPs.includes(otherCP) && wsConnections[otherCP] && wsConnections[otherCP].readyState === WebSocket.OPEN) {
         wsConnections[otherCP].close();
         wsConnections[otherCP] = null;
@@ -921,9 +1002,6 @@
           clearTimeout(noResponseTimeout[otherCP]);
           noResponseTimeout[otherCP] = null;
         }
-        stopPolling(otherCP);
-        stopSetConverterInterval(otherCP);
-        stopSetRelayInterval(otherCP);
       }
     });
 
@@ -937,45 +1015,6 @@
     document.getElementById('modeToggleBtn').title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
   });
 
-  document.getElementById('emergencyAllBtn').addEventListener('click', () => {
-    if (selectedCPs.length === 0) {
-      showToast('No CPs selected');
-      return;
-    }
-    selectedCPs.forEach(cp => handleEmergencyStop(cp));
-  });
-
-  function handleEmergencyStop(cp) {
-    if (!selectedCPs.includes(cp)) {
-      showToast(`Please select ${cp} in nav`);
-      return;
-    }
-    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
-      showToast(`No connection to ${cp}`);
-      return;
-    }
-    handleShutdown(cp, true);
-  }
-
-  function clearAllSavedValues(cp) {
-    lastSettings[cp] = { setConverter: null, setRelay: null, setHMI: null, setLED: null };
-    requestCommands[cp] = new Set(['all']);
-    responseCommands[cp] = new Set(['all']);
-    messagesByCP[cp] = { call: [], result: [] };
-    latestEVInfo[cp] = null;
-    chargerStatus[cp] = '';
-    toggleStates[cp] = 'Start';
-    if (document.getElementById(`toggleBtn${cp}`)) {
-      document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
-      document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
-    }
-    if (document.getElementById(`chargeStatus-${cp}`)) {
-      document.getElementById(`chargeStatus-${cp}`).textContent = 'N/A';
-    }
-    updateTable(cp, 'call');
-    updateTable(cp, 'result');
-  }
-
   function handleShutdown(cp, isEmergency = false) {
     if (!selectedCPs.includes(cp)) {
       showToast(`Please select ${cp} in nav`);
@@ -986,23 +1025,45 @@
       return;
     }
 
-    // Show warning modal with countdown
+    if (!isEmergency) {
+      const confirmStop = confirm(`Are you sure you want to stop ${cp}?`);
+      if (!confirmStop) {
+        return;
+      }
+    }
+
     const warningModal = document.getElementById('warningModal');
     const countdownElement = document.getElementById('countdown');
-    let countdown = 5;
-    countdownElement.textContent = countdown;
     warningModal.style.display = 'flex';
     
-    // Disable all interactive elements
     document.querySelectorAll('button, select, input').forEach(el => {
       el.disabled = true;
       el.classList.add('disabled-btn');
     });
 
-    // Send Stop, SetConverter off, and SetRelay off for the specific CP
-    if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
-      wsConnections[cp].send('stop');
-      const stopConverterMessage = [
+    let countdown = 5;
+    countdownElement.textContent = countdown;
+
+    wsConnections[cp].send('stop');
+    const stopConverterMessage = [
+      2,
+      ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+        (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+      ),
+      "DataTransfer",
+      {
+        "vendorId": "Totex",
+        "messageId": "1",
+        "data": {
+          command: "SetConverter",
+          payload: { ChargerID: cp, Status: "Off", Voltage: 0, Current: 0 }
+        }
+      }
+    ];
+    wsConnections[cp].send(JSON.stringify(stopConverterMessage));
+    lastSettings[cp].setConverter = { Status: "Off", Voltage: 0, Current: 0 }
+    setTimeout(() => {
+      const stopRelayMessage = [
         2,
         ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
           (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
@@ -1012,44 +1073,19 @@
           "vendorId": "Totex",
           "messageId": "1",
           "data": {
-            command: "SetConverter",
-            payload: { ChargerID: cp, Status: "Off", Voltage: 0, Current: 0 }
+            command: "SetRelay",
+            payload: { ChargerID: cp, Status: "Off" }
           }
         }
       ];
-      wsConnections[cp].send(JSON.stringify(stopConverterMessage));
-      lastSettings[cp].setConverter = { Status: "Off", Voltage: 0, Current: 0 };
+      wsConnections[cp].send(JSON.stringify(stopRelayMessage));
+      lastSettings[cp].setRelay = { Status: "Off" };
+    }, 5000);
 
-      setTimeout(() => {
-        if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
-          const stopRelayMessage = [
-            2,
-            ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-              (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-            ),
-            "DataTransfer",
-            {
-              "vendorId": "Totex",
-              "messageId": "1",
-              "data": {
-                command: "SetRelay",
-                payload: { ChargerID: cp, Status: "Off" }
-              }
-            }
-          ];
-          wsConnections[cp].send(JSON.stringify(stopRelayMessage));
-          lastSettings[cp].setRelay = { Status: "Off" };
-          console.log(`SetRelay off sent for ${cp} after 3 seconds at ${nowTs()}`);
-        }
-      }, 3000);
-    }
+    toggleStates[cp] = 'Start';
+    document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+    document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
 
-    stopSetConverterInterval(cp);
-    stopSetRelayInterval(cp);
-    // Clear all saved values for the CP
-    clearAllSavedValues(cp);
-
-    // Countdown timer for the specific CP
     const countdownInterval = setInterval(() => {
       countdown--;
       countdownElement.textContent = countdown;
@@ -1063,8 +1099,8 @@
       }
     }, 1000);
 
-    const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = 0;
+    showToast(isEmergency ? `Emergency Stop All CPs` : `Stop for ${cp}`);
+    updateButtonStates(cp);
   }
 
   function handleToggle(cp) {
@@ -1098,9 +1134,15 @@
         }
       }, 3000);
 
-      const detail = document.getElementById(`detail-${cp}`);
-      detail.scrollTop = 0;
     }
+  }
+
+  function handleEmergencyAll() {
+    ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'].forEach(cp => {
+      if (selectedCPs.includes(cp)) {
+        handleShutdown(cp, true);
+      }
+    });
   }
 
   function handleGetCommand(command, cp) {
@@ -1113,8 +1155,6 @@
       return;
     }
     wsConnections[cp].send(command);
-    const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = detail.scrollHeight;
   }
 
   let currentModalCommand = null;
@@ -1127,10 +1167,13 @@
       document.getElementById('commandModal').style.display = 'none';
       return;
     }
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
+      document.getElementById('commandModal').style.display = 'none';
+      return;
+    }
     let command = currentModalCommand;
     let payload = { ChargerID: cp };
-    const mainCP = selectedCPs.find(c => chargerStatus[c] === 'Preparing' || chargerStatus[c] === 'Charging') || cp;
-    
     if (command === 'setConverter') {
       const converterStatus = document.getElementById('converterStatus');
       const voltage = document.getElementById('voltage');
@@ -1142,60 +1185,8 @@
       }
       payload.Status = converterStatus.checked ? 'On' : 'Off';
       payload.Voltage = parseInt(voltage.value);
-      const connectedCPsCount = selectedCPs.filter(c => wsConnections[c]?.readyState === WebSocket.OPEN && lastHeartbeatTime[c] && (Date.now() - lastHeartbeatTime[c] <= 15000)).length;
-      payload.Current = connectedCPsCount > 0 ? Math.round(parseInt(current.value) / connectedCPsCount) : parseInt(current.value);
-      if (cp === mainCP) {
-        ['CP_01', 'CP_02', 'CP_03'].forEach(targetCP => {
-          if (wsConnections[targetCP] && wsConnections[targetCP].readyState === WebSocket.OPEN) {
-            lastSettings[targetCP].setConverter = { Status: payload.Status, Voltage: payload.Voltage, Current: payload.Current };
-            const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-              (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-            );
-            const message = [
-              2,
-              uniqueId,
-              "DataTransfer",
-              {
-                "vendorId": "Totex",
-                "messageId": "1",
-                "data": {
-                  command: "SetConverter",
-                  payload: { ChargerID: targetCP, Status: payload.Status, Voltage: payload.Voltage, Current: payload.Current }
-                }
-              }
-            ];
-            wsConnections[targetCP].send(JSON.stringify(message));
-            const detail = document.getElementById(`detail-${targetCP}`);
-            if (detail) detail.scrollTop = 0;
-            if (payload.Status === 'Off') {
-              setTimeout(() => {
-                if (wsConnections[targetCP] && wsConnections[targetCP].readyState === WebSocket.OPEN) {
-                  const stopRelayMessage = [
-                    2,
-                    ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-                      (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-                    ),
-                    "DataTransfer",
-                    {
-                      "vendorId": "Totex",
-                      "messageId": "1",
-                      "data": {
-                        command: "SetRelay",
-                        payload: { ChargerID: targetCP, Status: "Off" }
-                      }
-                    }
-                  ];
-                  wsConnections[targetCP].send(JSON.stringify(stopRelayMessage));
-                  lastSettings[targetCP].setRelay = { Status: "Off" };
-                  console.log(`SetRelay off sent for ${targetCP} after 3 seconds at ${nowTs()}`);
-                }
-              }, 3000);
-            }
-          }
-        });
-      } else {
-        showToast(`Only the main CP (${mainCP}) can set converter values`);
-      }
+      payload.Current = parseInt(current.value);
+      lastSettings[cp].setConverter = { Status: payload.Status, Voltage: payload.Voltage, Current: payload.Current };
     } else if (command === 'setRelay') {
       const relayStatus = document.getElementById('relayStatus');
       if (!relayStatus) {
@@ -1204,62 +1195,16 @@
         return;
       }
       payload.Status = relayStatus.checked ? 'On' : 'Off';
-      if (cp === mainCP) {
-        ['CP_01', 'CP_02', 'CP_03'].forEach(targetCP => {
-          if (wsConnections[targetCP] && wsConnections[targetCP].readyState === WebSocket.OPEN) {
-            lastSettings[targetCP].setRelay = { Status: payload.Status };
-            const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-              (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-            );
-            const message = [
-              2,
-              uniqueId,
-              "DataTransfer",
-              {
-                "vendorId": "Totex",
-                "messageId": "1",
-                "data": {
-                  command: "SetRelay",
-                  payload: { ChargerID: targetCP, Status: payload.Status }
-                }
-              }
-            ];
-            wsConnections[targetCP].send(JSON.stringify(message));
-            const detail = document.getElementById(`detail-${targetCP}`);
-            if (detail) detail.scrollTop = 0;
-          }
-        });
-      } else {
-        showToast(`Only the main CP (${mainCP}) can set relay values`);
-      }
+      lastSettings[cp].setRelay = { Status: payload.Status };
     } else if (command === 'setHMI') {
       const HMIStatus = document.getElementById('HMIStatus');
       if (!HMIStatus || HMIStatus.value === '') {
         showToast('Please select one status');
         document.getElementById('commandModal').style.display = 'none';
         return;
-      } 
+      }
       payload.Status = HMIStatus.value;
       lastSettings[cp].setHMI = { Status: payload.Status };
-      const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-        (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-      );
-      const message = [
-        2,
-        uniqueId,
-        "DataTransfer",
-        {
-          "vendorId": "Totex",
-          "messageId": "1",
-          "data": {
-            command: "SetHMI",
-            payload: payload
-          }
-        }
-      ];
-      wsConnections[cp].send(JSON.stringify(message));
-      const detail = document.getElementById(`detail-${cp}`);
-      detail.scrollTop = 0;
     } else if (command === 'setLED') {
       const LEDStatus = document.getElementById('LEDStatus');
       if (!LEDStatus) {
@@ -1269,32 +1214,37 @@
       }
       payload.Status = LEDStatus.checked ? 'On' : 'Off';
       lastSettings[cp].setLED = { Status: payload.Status };
-      const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-        (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-      );
-      const message = [
-        2,
-        uniqueId,
-        "DataTransfer",
-        {
-          "vendorId": "Totex",
-          "messageId": "1",
-          "data": {
-            command: "SetLED",
-            payload: payload
-          }
-        }
-      ];
-      wsConnections[cp].send(JSON.stringify(message));
-      const detail = document.getElementById(`detail-${cp}`);
-      detail.scrollTop = 0;
     }
+    const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+      (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+    );
+    const message = [
+      2,
+      uniqueId,
+      "DataTransfer",
+      {
+        "vendorId": "Totex",
+        "messageId": "1",
+        "data": {
+          command: command === 'setConverter' ? 'SetConverter' : 
+                   command === 'setRelay' ? 'SetRelay' : 
+                   command === 'setHMI' ? 'SetHMI' : 
+                   command === 'setLED' ? 'SetLED' : 
+                   'SetLED',
+          payload: payload
+        }
+      }
+    ];
+    wsConnections[cp].send(JSON.stringify(message));
     document.getElementById('commandModal').style.display = 'none';
+    updateButtonStates(cp);
   });
 
   document.getElementById('modalCancel').addEventListener('click', () => {
     document.getElementById('commandModal').style.display = 'none';
   });
+
+  document.getElementById('emergencyBtnAll').addEventListener('click', handleEmergencyAll);
 
   function showModal(command, cp) {
     if (!selectedCPs.includes(cp)) {
@@ -1305,15 +1255,14 @@
     currentModalCP = cp;
     document.getElementById('modalTitle').textContent = command === 'setConverter' ? 'Set Converter' : 
                                                      command === 'setRelay' ? 'Set Relay' : 
-                                                     command === 'setHMI' ? 'Set HMI' : 
-                                                     'Set LED';
+                                                     command === 'setLED' ? 'Set LED' :
+                                                     'Set HMI';
     document.getElementById('modalBody').innerHTML = '';
     const settings = lastSettings[cp][command];
     if (command === 'setConverter') {
-      const mainCP = selectedCPs.find(c => chargerStatus[c] === 'Preparing' || chargerStatus[c] === 'Charging') || cp;
-      const voltage = latestEVInfo[mainCP]?.ChargeVoltage ?? 423;
-      const current = latestEVInfo[mainCP]?.ChargeCurrent ?? 10;
       const status = settings?.Status === 'On' ? 'checked' : '';
+      const voltage = settings?.Voltage ?? 423;
+      const current = settings?.Current ?? 10;
       document.getElementById('modalBody').innerHTML = `
         <div class="switch-container">
           <label for="converterStatus">Status:</label>
@@ -1337,18 +1286,9 @@
             <input type="checkbox" id="relayStatus" ${status}>
             <span class="slider"></span>
           </label>
-          <span id="relayStatusLabel">${status ? 'On' : 'Off'}</span>
+          <span>${status ? 'On' : 'Off'}</span>
         </div>
       `;
-      const statusSwitch = document.getElementById('relayStatus');
-      if (statusSwitch) {
-        statusSwitch.addEventListener('change', () => {
-          const label = document.getElementById('relayStatusLabel');
-          if (label) {
-            label.textContent = statusSwitch.checked ? 'On' : 'Off';
-          }
-        });
-      }
     } else if (command === 'setHMI') {
       const status = settings?.Status ?? '';
       document.getElementById('modalBody').innerHTML = `
@@ -1371,28 +1311,17 @@
             <input type="checkbox" id="LEDStatus" ${status}>
             <span class="slider"></span>
           </label>
-          <span id="LEDStatusLabel">${status ? 'On' : 'Off'}</span>
+          <span>${status ? 'On' : 'Off'}</span>
         </div>
       `;
-      const statusSwitch = document.getElementById('LEDStatus');
-      if (statusSwitch) {
-        statusSwitch.addEventListener('change', () => {
-          const label = document.getElementById('LEDStatusLabel');
-          if (label) {
-            label.textContent = statusSwitch.checked ? 'On' : 'Off';
-          }
-        });
-      }
     }
-    const statusSwitch = document.getElementById('modalBody').querySelector('#converterStatus');
+    const statusSwitch = document.getElementById('modalBody').querySelector('#converterStatus, #relayStatus');
     if (statusSwitch) {
       statusSwitch.addEventListener('change', () => {
         const label = statusSwitch.parentElement.nextElementSibling;
         label.textContent = statusSwitch.checked ? 'On' : 'Off';
       });
     }
-    const detail = document.getElementById(`detail-${cp}`);
-    detail.scrollTop = 0;
     document.getElementById('commandModal').style.display = 'flex';
   }
 
@@ -1417,7 +1346,6 @@
     ms.textContent = msg;
     e.append(ts, ms);
     log.appendChild(e);
-    log.scrollTop = log.scrollHeight;
   }
 
   function flattenObject(obj, parent = '', res = {}) {
@@ -1435,125 +1363,7 @@
     return res;
   }
 
-  function startSetConverterInterval(cp) {
-    if (setConverterIntervals[cp]) {
-      clearInterval(setConverterIntervals[cp]);
-    }
-    const mainCP = selectedCPs.find(c => chargerStatus[c] === 'Preparing' || chargerStatus[c] === 'Charging');
-    if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN && mainCP && latestEVInfo[mainCP]) {
-      setConverterIntervals[cp] = setInterval(() => {
-        if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
-          // Define cmd based on the last result message
-          const lastResult = messagesByCP[cp].result[messagesByCP[cp].result.length - 1];
-          let cmd = null;
-          if (lastResult && lastResult.raw) {
-            try {
-              const parsed = JSON.parse(lastResult.raw);
-              if (parsed[2] && typeof parsed[2] === 'object' && parsed[2].data && parsed[2].data.command) {
-                cmd = parsed[2].data.command;
-              }
-            } catch (e) {
-              console.error(`Failed to parse last result for ${cp}:`, e);
-            }
-          }
-          if (cmd === 'StopTransaction') {
-            const converterMessage = [
-              2,
-              ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-                (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-              ),
-              "DataTransfer",
-              {
-                "vendorId": "Totex",
-                "messageId": "1",
-                "data": {
-                  command: "SetConverter",
-                  payload: { ChargerID: cp, Status: "Off", Voltage: 0, Current: 0 }
-                }
-              }
-            ];
-            wsConnections[cp].send(JSON.stringify(converterMessage));
-            lastSettings[cp].setConverter = { Status: "Off", Voltage: 0, Current: 0 };
-            console.log(`SetConverter set to Off for ${cp} at ${nowTs()} due to StopTransaction`);
-            stopSetConverterInterval(cp);
-            clearAllSavedValues(cp);
-          }
-        } else {
-          stopSetConverterInterval(cp);
-        }
-      }, 10000);
-    }
-  }
-
-  function stopSetConverterInterval(cp) {
-    if (setConverterIntervals[cp]) {
-      clearInterval(setConverterIntervals[cp]);
-      setConverterIntervals[cp] = null;
-      console.log(`Stopped SetConverter interval for ${cp} at ${nowTs()}`);
-    }
-  }
-
-  function startSetRelayInterval(cp) {
-    if (setRelayIntervals[cp]) {
-      clearInterval(setRelayIntervals[cp]);
-    }
-    const mainCP = selectedCPs.find(c => chargerStatus[c] === 'Preparing' || chargerStatus[c] === 'Charging');
-    if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN && mainCP && latestEVInfo[mainCP]) {
-      setRelayIntervals[cp] = setInterval(() => {
-        if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
-          // Define cmd based on the last result message
-          const lastResult = messagesByCP[cp].result[messagesByCP[cp].result.length - 1];
-          let cmd = null;
-          if (lastResult && lastResult.raw) {
-            try {
-              const parsed = JSON.parse(lastResult.raw);
-              if (parsed[2] && typeof parsed[2] === 'object' && parsed[2].data && parsed[2].data.command) {
-                cmd = parsed[2].data.command;
-              }
-            } catch (e) {
-              console.error(`Failed to parse last result for ${cp}:`, e);
-            }
-          }
-          if (cmd === 'StopTransaction') {
-            const relayMessage = [
-              2,
-              ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-                (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-              ),
-              "DataTransfer",
-              {
-                "vendorId": "Totex",
-                "messageId": "1",
-                "data": {
-                  command: "SetRelay",
-                  payload: { ChargerID: cp, Status: "Off" }
-                }
-              }
-            ];
-            wsConnections[cp].send(JSON.stringify(relayMessage));
-            lastSettings[cp].setRelay = { Status: "Off" };
-            console.log(`SetRelay set to Off for ${cp} at ${nowTs()} due to StopTransaction`);
-            stopSetRelayInterval(cp);
-            clearAllSavedValues(cp);
-          }
-        } else {
-          stopSetRelayInterval(cp);
-        }
-      }, 5000);
-    }
-  }
-
-  function stopSetRelayInterval(cp) {
-    if (setRelayIntervals[cp]) {
-      clearInterval(setRelayIntervals[cp]);
-      setRelayIntervals[cp] = null;
-      console.log(`Stopped SetRelay interval for ${cp} at ${nowTs()}`);
-    }
-  }
-
   function setLatest(cp, desc, raw, type) {
-    const detail = document.getElementById(`detail-${cp}`);
-    const atBottom = detail.scrollHeight - detail.clientHeight <= detail.scrollTop + 1;
     desc.innerHTML = '';
 
     let o;
@@ -1567,7 +1377,6 @@
       v.textContent = raw;
       r.append(n, v);
       desc.appendChild(r);
-      if (atBottom) detail.scrollTop = detail.scrollHeight;
       return;
     }
 
@@ -1609,11 +1418,6 @@
                 desc.appendChild(r);
               }
             });
-            if (data.command === 'GetEVInfo') {
-              latestEVInfo[cp] = data.payload;
-              checkSetConverterConditions(cp);
-              checkSetRelayConditions(cp);
-            }
           } else if (data.payload) {
             const flattenedPayload = flattenObject(data.payload);
             Object.entries(flattenedPayload).forEach(([k, v]) => {
@@ -1648,265 +1452,174 @@
       r.append(n, v2);
       desc.appendChild(r);
     }
-    if (atBottom) detail.scrollTop = detail.scrollHeight;
-  }
-
-  function checkSetConverterConditions(cp) {
-    const mainCP = selectedCPs.find(c => chargerStatus[c] === 'Preparing' || chargerStatus[c] === 'Charging');
-    if (cp === mainCP && chargerStatus[cp] === 'Charging' && latestEVInfo[cp] && latestEVInfo[cp].ChargeVoltage > 50 && latestEVInfo[cp].ChargeCurrent > 0) {
-      const connectedCPsCount = selectedCPs.filter(c => wsConnections[c]?.readyState === WebSocket.OPEN && lastHeartbeatTime[c] && (Date.now() - lastHeartbeatTime[c] <= 15000)).length;
-      const payload = {
-        Status: "On",
-        Voltage: latestEVInfo[cp].ChargeVoltage,
-        Current: connectedCPsCount > 0 ? Math.round(latestEVInfo[cp].ChargeCurrent / connectedCPsCount) : latestEVInfo[cp].ChargeCurrent
-      };
-      ['CP_01', 'CP_02', 'CP_03'].forEach(targetCP => {
-        if (wsConnections[targetCP] && wsConnections[targetCP].readyState === WebSocket.OPEN) {
-          const converterMessage = [
-            2,
-            ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-              (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-            ),
-            "DataTransfer",
-            {
-              "vendorId": "Totex",
-              "messageId": "1",
-              "data": {
-                command: "SetConverter",
-                payload: { ChargerID: targetCP, ...payload }
-              }
-            }
-          ];
-          wsConnections[targetCP].send(JSON.stringify(converterMessage));
-          lastSettings[targetCP].setConverter = payload;
-          console.log(`SetConverter set to On for ${targetCP} with Voltage: ${payload.Voltage}, Current: ${payload.Current} at ${nowTs()}`);
-          startSetConverterInterval(targetCP);
-        }
-      });
-    }
-  }
-
-  function checkSetRelayConditions(cp) {
-    const mainCP = selectedCPs.find(c => chargerStatus[c] === 'Preparing' || chargerStatus[c] === 'Charging');
-    if (cp === mainCP && chargerStatus[cp] === 'Charging' && latestEVInfo[cp] && latestEVInfo[cp].ChargeVoltage > 50 && latestEVInfo[cp].ChargeCurrent > 0) {
-      const payload = {
-        Status: "On"
-      };
-      ['CP_01', 'CP_02', 'CP_03'].forEach(targetCP => {
-        if (wsConnections[targetCP] && wsConnections[targetCP].readyState === WebSocket.OPEN) {
-          const relayMessage = [
-            2,
-            ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-              (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-            ),
-            "DataTransfer",
-            {
-              "vendorId": "Totex",
-              "messageId": "1",
-              "data": {
-                command: "SetRelay",
-                payload: { ChargerID: targetCP, ...payload }
-              }
-            }
-          ];
-          wsConnections[targetCP].send(JSON.stringify(relayMessage));
-          lastSettings[targetCP].setRelay = payload;
-          console.log(`SetRelay set to On for ${targetCP} at ${nowTs()}`);
-          startSetRelayInterval(targetCP);
-        }
-      });
-    }
   }
 
   function categorize(raw, cp) {
-    let o;
-    try {
-      o = JSON.parse(raw);
-    } catch {
-      console.error(`Failed to parse message for ${cp}:`, raw);
-      return;
-    }
-    if (!Array.isArray(o)) {
-      console.warn(`Invalid message format for ${cp}:`, raw);
-      return;
-    }
-    const t0 = o[0], ts = nowTs();
-    if (t0 === 2 || t0 === 3) {
-      let cmd = o[2];
-      if (o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.command) {
-        cmd = o[3].data.command;
-      } else if (o[2] && typeof o[2] === 'object' && o[2].data && o[2].data.command) {
-        cmd = o[2].data.command;
-      }
-      if (cmd === 'Heartbeat') {
-        lastHeartbeatTime[cp] = Date.now();
-        console.log(`Heartbeat received for ${cp} at ${ts}, updating lastHeartbeatTime`);
-        appendLog(raw, '', cp);
-        startNoResponseTimeout(cp);
-        if (selectedCPs.includes(cp)) {
-          updateConnectionStatus();
+  let o;
+  try {
+    o = JSON.parse(raw);
+  } catch {
+    console.error(`Failed to parse message for ${cp}:`, raw);
+    return;
+  }
+  if (!Array.isArray(o)) {
+    console.warn(`Invalid message format for ${cp}:`, raw);
+    return;
+  }
+  const t0 = o[0], ts = nowTs();
+  if (t0 === 2 || t0 === 3) {
+    let cmd = o[2];
+    if (o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.command) {
+      cmd = o[3].data.command;
+    } else if (o[2] && typeof o[2] === 'object' && o[2].data) {
+      let data = o[2].data;
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          console.error(`Failed to parse data field for ${cp}:`, data);
+          return;
         }
-        return;
       }
-      if (cmd === 'StopTransaction') {
-        // Perform the same actions as stop/emergency stop for all selected CPs and clear all saved values
-        selectedCPs.forEach(targetCP => {
-          if (wsConnections[targetCP] && wsConnections[targetCP].readyState === WebSocket.OPEN) {
-            wsConnections[targetCP].send('stop');
-            const stopConverterMessage = [
-              2,
-              ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-                (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-              ),
-              "DataTransfer",
-              {
-                "vendorId": "Totex",
-                "messageId": "1",
-                "data": {
-                  command: "SetConverter",
-                  payload: { ChargerID: targetCP, Status: "Off", Voltage: 0, Current: 0 }
-                }
-              }
-            ];
-            wsConnections[targetCP].send(JSON.stringify(stopConverterMessage));
-            lastSettings[targetCP].setConverter = { Status: "Off", Voltage: 0, Current: 0 };
-
-            setTimeout(() => {
-              if (wsConnections[targetCP] && wsConnections[targetCP].readyState === WebSocket.OPEN) {
-                const stopRelayMessage = [
-                  2,
-                  ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-                    (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-                  ),
-                  "DataTransfer",
-                  {
-                    "vendorId": "Totex",
-                    "messageId": "1",
-                    "data": {
-                      command: "SetRelay",
-                      payload: { ChargerID: targetCP, Status: "Off" }
-                    }
-                  }
-                ];
-                wsConnections[targetCP].send(JSON.stringify(stopRelayMessage));
-                lastSettings[targetCP].setRelay = { Status: "Off" };
-                console.log(`SetRelay off sent for ${targetCP} after 3 seconds at ${nowTs()}`);
-              }
-            }, 3000);
-
-            stopSetConverterInterval(targetCP);
-            stopSetRelayInterval(targetCP);
-            clearAllSavedValues(targetCP);
-          }
-        });
-        showToast(`Received StopTransaction from ${cp}`);
-      } else if (cmd === 'StartTransaction') {
-        toggleStates[cp] = 'Stop';
-        document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
-        document.getElementById(`toggleBtn${cp}`).classList.add('stop');
+      if (data.command) {
+        cmd = data.command;
       }
-      if (t0 === 2) {
-        if (cmd === 'StatusNotification' && o[3] && o[3].status) {
-          const newStatus = o[3].status;
-          chargerStatus[cp] = newStatus;
-          document.getElementById(`chargeStatus-${cp}`).textContent = chargerStatus[cp] || 'N/A';
-          if (newStatus === 'Charging' && chargingStatusTimeouts[cp]) {
-            clearTimeout(chargingStatusTimeouts[cp]);
-            chargingStatusTimeouts[cp] = null;
-          }
-          if (newStatus === 'Charging') {
-            startPolling(cp);
-            if (latestEVInfo[cp]) {
-              checkSetConverterConditions(cp);
-              checkSetRelayConditions(cp);
+    }
+    if (cmd === 'Heartbeat') {
+      lastHeartbeatTime[cp] = Date.now();
+      console.log(`Heartbeat received for ${cp} at ${ts}, updating lastHeartbeatTime`);
+      appendLog(raw, '', cp);
+      startNoResponseTimeout(cp);
+      if (selectedCPs.includes(cp)) {
+        updateConnectionStatus();
+        // Send SetHMI after receiving heartbeat
+        if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
+          const hmiStatus = (chargerStatus[cp] === 'Available' || chargerStatus[cp] === 'Preparing') ? 'Available' : 'Engaged';
+          const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+            (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+          );
+          const setHMIMessage = [
+            2,
+            uniqueId,
+            "DataTransfer",
+            {
+              "vendorId": "Totex",
+              "messageId": "1",
+              "data": {
+                command: "SetHMI",
+                payload: { ChargerID: cp, Status: hmiStatus }
+              }
             }
-          } else {
-            stopPolling(cp);
-            stopSetConverterInterval(cp);
-            stopSetRelayInterval(cp);
-          }
-          updateButtonVisibility(cp);
+          ];
+          wsConnections[cp].send(JSON.stringify(setHMIMessage));
+          lastSettings[cp].setHMI = { Status: hmiStatus };
+          appendLog(`Sent SetHMI with Status: ${hmiStatus} for ${cp}`, '', cp);
+          updateButtonStates(cp);
+        } else {
+          appendLog(`Cannot send SetHMI for ${cp}: No active WebSocket connection`, 'status', cp);
         }
-        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
-          requestCommands[cp].add(cmd);
-          messagesByCP[cp].call.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'call');
-          }
+      }
+      return;
+    }
+    if (cmd === 'StopTransaction') {
+      toggleStates[cp] = 'Start';
+      document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+      document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+      showToast(`Received StopTransaction from ${cp}`);
+      updateButtonStates(cp);
+    } else if (cmd === 'StartTransaction') {
+      toggleStates[cp] = 'Stop';
+      document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
+      document.getElementById(`toggleBtn${cp}`).classList.add('stop');
+    }
+    if (t0 === 2) {
+      if (cmd === 'StatusNotification' && o[3] && o[3].status) {
+        chargerStatus[cp] = o[3].status;
+        document.getElementById(`chargeStatus-${cp}`).textContent = chargerStatus[cp] || 'N/A';
+        if (o[3].status === 'Charging' && chargingStatusTimeouts[cp]) {
+          clearTimeout(chargingStatusTimeouts[cp]);
+          chargingStatusTimeouts[cp] = null;
         }
-      } else if (t0 === 3) {
-        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
-          responseCommands[cp].add(cmd);
+      }
+      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+        requestCommands[cp].add(cmd);
+        messagesByCP[cp].call.push({ command: cmd, raw, ts });
+      }
+    } else if (t0 === 3) {
+      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+        if (cmd === 'GetEVInfo') {
+          getEVInfoCommands[cp].add(cmd);
           messagesByCP[cp].result.push({ command: cmd, raw, ts });
           if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'result');
+            updateTable(cp, 'getEVInfoTable');
           }
-        } else {
-          messagesByCP[cp].result.push({ command: null, raw, ts });
+        } else if (cmd === 'GetConverter') {
+          getConverterCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
           if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'result');
+            updateTable(cp, 'getConverterTable');
           }
+        } else if (cmd === 'GetRelay') {
+          getRelayCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'getRelayTable');
+          }
+        } else if (cmd === 'GetConnectorStatus') {
+          getConnectorStatusCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'getConnectorStatusTable');
+          }
+        } else if (cmd === 'GetMeter') {
+          getMeterCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'getMeterTable');
+          }
+        } else if (cmd === 'GetTemperature') {
+          getTemperatureCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'getTemperatureTable');
+          } 
+        } else if (cmd === 'GetSystemError') {
+          getSystemErrorCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          if (selectedCPs.includes(cp)) {
+            updateTable(cp, 'getSystemErrorTable');
+          } 
+        } else {
+          responseCommands[cp].add(cmd);
+          messagesByCP[cp].result.push({ command: cmd, raw, ts });
         }
+      } else {
+        messagesByCP[cp].result.push({ command: null, raw, ts });
       }
-      console.log(`Calling updateConnectionStatus for ${cp} after message`);
-      updateConnectionStatus();
     }
+    console.log(`Calling updateConnectionStatus for ${cp} after message`);
+    updateConnectionStatus();
   }
+}
 
   function updateTable(cp, type) {
     if (!document.getElementById(`section-${cp}`)) return;
-    const desc = document.getElementById(`${type}-desc-${cp}`).querySelector('tbody');
+    const tableType = type === 'getEVInfoTable' ? 'getEVInfo' : 
+                     type === 'getConverterTable' ? 'getConverter' : 
+                     type === 'getRelayTable' ? 'getRelay' : 
+                     type === 'getConnectorStatusTable' ? 'getConnectorStatus' : 
+                     type === 'getMeterTable' ? 'getMeter' : 
+                     type === 'getTemperatureTable' ? 'getTemperature' : 
+                     type === 'getSystemErrorTable' ? 'getSystemError' : type;
+    const desc = document.getElementById(`${tableType}-desc-${cp}`)?.querySelector('tbody');
+
+    if (!desc) return;
     desc.innerHTML = '';
-    const arr = messagesByCP[cp][type];
+    const arr = messagesByCP[cp][type === 'getEVInfoTable' || type === 'getConverterTable' || type === 'getRelayTable' || type === 'getConnectorStatusTable' || type === 'getMeterTable' || type === 'getTemperatureTable'  || type === 'getSystemErrorTable' ? 'result' : type];
     if (arr.length > 0) {
       const latestMessage = arr[arr.length - 1];
-      setLatest(cp, desc, latestMessage.raw, type);
+      setLatest(cp, desc, latestMessage.raw, type === 'getEVInfoTable' || type === 'getConverterTable' || type === 'getRelayTable' || type === 'getConnectorStatusTable' || type === 'getMeterTable' || type === 'getTemperatureTable'  || type === 'getSystemErrorTable' ? 'result' : type);
     }
-  }
-
-  function updateButtonVisibility(cp) {
-    const buttonGroup = document.getElementById(`buttonGroup-${cp}`);
-    const mainLabel = document.getElementById(`mainLabel-${cp}`);
-    if (buttonGroup && mainLabel) {
-      buttonGroup.style.display = 'block';
-      mainLabel.textContent = (chargerStatus[cp] === 'Preparing' || chargerStatus[cp] === 'Charging') ? ' (Main CP)' : '';
-    }
-  }
-
-  function startPolling(cp) {
-    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) return;
-    wsConnections[cp].send('getEVInfo');
-    if (!pollingIntervals[cp].evInfo) {
-      pollingIntervals[cp].evInfo = setInterval(() => {
-        if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
-          wsConnections[cp].send('getEVInfo');
-        }
-      }, 5000);
-    }
-    const firstCommand = otherGetCommands[pollingIntervals[cp].othersIndex];
-    wsConnections[cp].send(firstCommand);
-    pollingIntervals[cp].othersIndex = (pollingIntervals[cp].othersIndex + 1) % otherGetCommands.length;
-    if (!pollingIntervals[cp].others) {
-      pollingIntervals[cp].others = setInterval(() => {
-        if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
-          const command = otherGetCommands[pollingIntervals[cp].othersIndex];
-          wsConnections[cp].send(command);
-          pollingIntervals[cp].othersIndex = (pollingIntervals[cp].othersIndex + 1) % otherGetCommands.length;
-        }
-      }, 10000);
-    }
-  }
-
-  function stopPolling(cp) {
-    if (pollingIntervals[cp].evInfo) {
-      clearInterval(pollingIntervals[cp].evInfo);
-      pollingIntervals[cp].evInfo = null;
-    }
-    if (pollingIntervals[cp].others) {
-      clearInterval(pollingIntervals[cp].others);
-      pollingIntervals[cp].others = null;
-    }
-    pollingIntervals[cp].othersIndex = 0;
   }
 
   function connect(cp) {
@@ -1920,8 +1633,13 @@
       startNoResponseTimeout(cp);
       if (selectedCPs.includes(cp)) {
         updateConnectionStatus();
-        updateTable(cp, 'call');
-        updateTable(cp, 'result');
+        updateTable(cp, 'getEVInfoTable');
+        updateTable(cp, 'getConverterTable');
+        updateTable(cp, 'getRelayTable');
+        updateTable(cp, 'getConnectorStatusTable');
+        updateTable(cp, 'getMeterTable');
+        updateTable(cp, 'getTemperatureTable');
+        updateTable(cp, 'getSystemErrorTable');
       }
     };
     wsConnections[cp].onmessage = (ev) => {
@@ -1942,9 +1660,6 @@
       if (selectedCPs.includes(cp)) {
         updateConnectionStatus();
       }
-      stopPolling(cp);
-      stopSetConverterInterval(cp);
-      stopSetRelayInterval(cp);
       setTimeout(() => {
         if (selectedCPs.includes(cp)) {
           connect(cp);
@@ -1960,9 +1675,36 @@
     };
   }
 
-  ['CP_01', 'CP_02', 'CP_03'].forEach(cp => {
-    switchCP(cp);
+  function autoSendGetCommands(cp) {
+    const commands = [
+      'getConverter',
+      'getRelay',
+      'getConnectorStatus',
+      'getEVInfo',
+      'getMeter',
+      'getTemperature',
+      'getSystemError'
+    ];
+    let index = 0;
+
+    function sendNextCommand() {
+      if (index < commands.length && selectedCPs.includes(cp) && wsConnections[cp]?.readyState === WebSocket.OPEN) {
+        handleGetCommand(commands[index], cp);
+        index++;
+        setTimeout(sendNextCommand, 500);
+      } else {
+        index = 0;
+        setTimeout(sendNextCommand, 500);
+      }
+    }
+
+    sendNextCommand();
+  }
+
+  selectedCPs = ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'];
+  ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'].forEach(cp => {
     connect(cp);
+    autoSendGetCommands(cp);
   });
   updateActiveButton();
   updateTitle();
