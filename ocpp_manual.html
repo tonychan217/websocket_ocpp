@@ -1691,10 +1691,10 @@
       if (index < commands.length && selectedCPs.includes(cp) && wsConnections[cp]?.readyState === WebSocket.OPEN) {
         handleGetCommand(commands[index], cp);
         index++;
-        setTimeout(sendNextCommand, 500);
+        setTimeout(sendNextCommand, 1000);
       } else {
         index = 0;
-        setTimeout(sendNextCommand, 500);
+        setTimeout(sendNextCommand, 1000);
       }
     }
 
