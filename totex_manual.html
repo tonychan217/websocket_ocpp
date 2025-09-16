@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OCPP WSS Center</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --bg-color: #f1f3f5;
+      --container-bg: #fff;
+      --header-bg: #888;
+      --header-text: #fff;
+      --text-color: #333;
+      --border-color: #e0e0e0;
+      --detail-bg: #fafbfc;
+      --table-header-bg: #f0f0f0;
+      --button-bg: #007bff;
+      --button-text: #fff;
+      --status-color: #555;
+      --timestamp-color: #888;
+      --toggle-bg: #fff;
+      --toggle-border: #ccc;
+      --toggle-shadow: rgba(0,0,0,0.1);
+      --modal-bg: #fff;
+      --modal-border: #e0e0e0;
+      --input-bg: #f9f9f9;
+      --input-border: #ccc;
+      --command-btn-hover: #d8d8d8;
+      --emergency-btn-bg: #dc3545;
+      --emergency-btn-hover: #c82333;
+      --switch-bg-off: #ccc;
+      --switch-bg-on: #28a745;
+      --switch-handle: #fff;
+      --switch-shadow: rgba(0,0,0,0.2);
+      --status-connected: #28a745;
+      --status-disconnected: #dc3545;
+      --request-nav-bg: #fff;
+      --disabled-btn-bg: #cccccc;
+      --disabled-btn-text: #666666;
+      --set-btn-on: #28a745;
+    }
+    :root.dark-mode {
+      --bg-color: #1a1a1a;
+      --container-bg: #2d2d2d;
+      --header-bg: #444;
+      --header-text: #fff;
+      --text-color: #ddd;
+      --border-color: #444;
+      --detail-bg: #252525;
+      --table-header-bg: #333;
+      --button-bg: #1e90ff;
+      --button-text: #fff;
+      --status-color: #aaa;
+      --timestamp-color: #888;
+      --toggle-bg: #333;
+      --toggle-border: #555;
+      --toggle-shadow: rgba(0,0,0,0.3);
+      --modal-bg: #2d2d2d;
+      --modal-border: #444;
+      --input-bg: #333;
+      --input-border: #555;
+      --command-btn-hover: #2a2a2a;
+      --emergency-btn-bg: #c82333;
+      --emergency-btn-hover: #b31b2b;
+      --switch-bg-off: #555;
+      --switch-bg-on: #28a745;
+      --switch-handle: #ddd;
+      --switch-shadow: rgba(0,0,0,0.4);
+      --status-connected: #28a745;
+      --status-disconnected: #c82333;
+      --request-nav-bg: #333;
+      --disabled-btn-bg: #555555;
+      --disabled-btn-text: #999999;
+      --set-btn-on: #28a745;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .navbar {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .navbar-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .navbar-buttons {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .suffix-btn {
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .suffix-btn.active {
+      background: #0056b3;
+      font-weight: bold;
+    }
+    .mode-toggle {
+      margin-left: 1rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      background: var(--toggle-bg);
+      border: 2px solid var(--toggle-border);
+      border-radius: 50%;
+      box-shadow: 0 2px 6px var(--toggle-shadow);
+      cursor: pointer;
+      position: relative;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .3s ease, border-color .3s ease, box-shadow .3s ease;
+    }
+    .mode-toggle:hover {
+      box-shadow: 0 4px 12px var(--toggle-shadow);
+    }
+    .mode-toggle .icon {
+      position: absolute;
+      width: 1.4rem;
+      height: 1.4rem;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      transition: transform .5s ease, opacity .5s ease;
+    }
+    .mode-toggle .moon {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+      color: #f1c40f;
+    }
+    .mode-toggle .sun {
+      transform: scale(0) rotate(90deg);
+      opacity: 0;
+      color: #f39c12;
+    }
+    :root.dark-mode .mode-toggle .moon {
+      transform: scale(0) rotate(-90deg);
+      opacity: 0;
+    }
+    :root.dark-mode .mode-toggle .sun {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+    .container {
+      width: 98%;
+      background: var(--container-bg);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+      margin: 1rem;
+    }
+    .cp-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .cp-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+    .cp-section:last-child {
+      border-right: none;
+    }
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .detail, .log {
+      padding: 1rem;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .detail::-webkit-scrollbar, .log::-webkit-scrollbar { display: none; }
+    .detail:hover, .log:hover { scrollbar-width: thin; -ms-overflow-style: auto; }
+    .detail:hover::-webkit-scrollbar, .log:hover::-webkit-scrollbar {
+      display: block; width: 8px;
+    }
+    .detail:hover::-webkit-scrollbar-track, .log:hover::-webkit-scrollbar-track {
+      background: var(--border-color);
+    }
+    .detail:hover::-webkit-scrollbar-thumb, .log:hover::-webkit-scrollbar-thumb {
+      background: var(--header-bg); border-radius: 4px;
+    }
+    .log {
+      overflow-x: hidden;
+      flex: 1;
+      border-top: 1px solid var(--border-color);
+      background: var(--detail-bg);
+    }
+    .detail {
+      flex: 2;
+      background: var(--detail-bg);
+    }
+    .entry {
+      margin-bottom: .5rem;
+      font-family: monospace;
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
+    }
+    .entry .ts {
+      color: var(--timestamp-color);
+      font-size: .85em;
+      width: 150px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .entry .msg {
+      flex: 1;
+      overflow-wrap: break-word;
+      max-width: calc(100% - 150px);
+    }
+    .entry.status {
+      font-style: italic;
+      color: var(--status-color);
+    }
+    .subheader {
+      font-weight: bold;
+      margin: 1rem 0 .5rem;
+      font-size: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .subheader .button-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .filter {
+      margin-bottom: .5rem;
+    }
+    .filter label {
+      margin-right: 1rem;
+      font-size: 1rem;
+    }
+    .filter select {
+      padding: .4rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--container-bg);
+      color: var(--text-color);
+      font-size: .9rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: .5rem 0;
+      font-family: monospace;
+      font-size: .9rem;
+    }
+    th, td {
+      padding: .5rem;
+      border: 1px solid var(--border-color);
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      background: var(--table-header-bg);
+    }
+    .call-table th,
+    .call-desc th,
+    .result-desc th,
+    .result-table th {
+      text-align: left;
+      white-space: nowrap;
+    }
+    .json-wrap {
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+    .table-footer {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1
+      rem;
+      gap: .5rem;
+      width: 100%;
+    }
+    .table-footer.request-footer {
+      justify-content: flex-start;
+    }
+    .table-footer.response-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .button-group.column {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .button-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .toggle-container {
+      margin-left: auto;
+    }
+    .toggle-btn,
+    .get-btn {
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      padding: .4rem .8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .toggle-btn.stop {
+      background: var(--emergency-btn-bg);
+    }
+    .toggle-btn.stop:hover {
+      background: var(--emergency-btn-hover);
+    }
+    .get-converter-btn,
+    .set-converter-btn,
+    .set-relay-btn,
+    .set-hmi-btn,
+    .set-led-btn,
+    .get-relay-btn,
+    .get-meter-btn,
+    .get-temperature-btn,
+    .get-connector-status-btn,
+    .get-ev-info-btn,
+    .get-system-error-btn {
+      background: var(--table-header-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: .4rem .8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .set-converter-btn.on,
+    .set-relay-btn.on,
+    .set-hmi-btn.on,
+    .set-led-btn.on {
+      border: 3px solid var(--set-btn-on);
+      font-weight: bold;
+      animation: flash 1s infinite;
+    }
+    @keyframes flash {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .emergency-btn {
+      background: var(--emergency-btn-bg);
+      color: var(--button-text);
+      border: none;
+      padding: .4rem .8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .toggle-btn:hover,
+    .get-btn:hover,
+    .suffix-btn:hover {
+      background: #3ca3f7;
+    }
+    .get-converter-btn:hover,
+    .set-converter-btn:hover,
+    .set-relay-btn:hover,
+    .set-hmi-btn:hover,
+    .set-led-btn:hover,
+    .get-relay-btn:hover,
+    .get-meter-btn:hover,
+    .get-temperature-btn:hover,
+    .get-connector-status-btn:hover,
+    .get-ev-info-btn:hover,
+    .get-system-error-btn:hover {
+      background: var(--command-btn-hover);
+    }
+    .emergency-btn:hover {
+      background: var(--emergency-btn-hover);
+    }
+    .suffix-btn.active:hover {
+      background: #0056b3;
+    }
+    .disabled-btn {
+      background: var(--disabled-btn-bg);
+      color: var(--disabled-btn-text);
+      cursor: not-allowed;
+      pointer-events: auto;
+    }
+    .disabled-btn:hover {
+      background: var(--disabled-btn-bg);
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--modal-bg);
+      border: 1px solid var(--modal-border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    .modal-body {
+      margin-bottom: 1rem;
+    }
+    .modal-body label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+    .modal-body input,
+    .modal-body select {
+      width: 100%;
+      padding: 0.4rem;
+      border: 1px solid var(--input-border);
+      border-radius: 4px;
+      background: var(--input-bg);
+      color: var(--text-color);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+    .modal-btn {
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      padding: 0.4rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .modal-btn.cancel {
+      background: #6c757d;
+    }
+    .modal-btn:hover {
+      background: #3ca3f7;
+    }
+    .modal-btn.cancel:hover {
+      background: #5a6268;
+    }
+    .switch-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 20px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--switch-bg-off);
+      transition: 0.3s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background: var(--switch-handle);
+      transition: 0.3s;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px var(--switch-shadow);
+    }
+    input:checked + .slider {
+      background: var(--switch-bg-on);
+    }
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+    .request-nav {
+      background: var(--request-nav-bg);
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .request-nav .status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .request-nav .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .request-nav .status-indicator.connected {
+      background: var(--status-connected);
+    }
+    .request-nav .status-indicator.disconnected {
+      background: var(--status-disconnected);
+    }
+    @media(max-width:700px) {
+      .cp-container { flex-direction: column; }
+      .cp-section { border-right: none; border-bottom: 1px solid var(--border-color); }
+      .cp-section:last-child { border-bottom: none; }
+      .entry .ts { width: 120px; }
+      .entry .msg { max-width: calc(100% - 120px); }
+      .modal-content { width: 95%; }
+      .subheader { flex-direction: column; align-items: flex-start; }
+      .request-nav { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .table-footer { flex-wrap: wrap; }
+      .table-footer.response-footer { flex-direction: column; align-items: flex-start; }
+      .button-group.column { align-items: flex-start; }
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 0.8rem 1.5rem;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 2000;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-10px);
+    }
+    :root.dark-mode .toast {
+      background: #555;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="navbar-title">
+      OCPP WSS Center –> <span id="currentCP"></span>
+    </div>
+    <div class="navbar-buttons">
+      <button class="emergency-btn" id="emergencyBtnAll">Emergency Stop</button>
+      <button class="suffix-btn" id="cp01Btn" onclick="switchCP('CP_01')">CP_01</button>
+      <button class="suffix-btn" id="cp02Btn" onclick="switchCP('CP_02')">CP_02</button>
+      <button class="suffix-btn" id="cp03Btn" onclick="switchCP('CP_03')">CP_03</button>
+      <button class="suffix-btn" id="cp04Btn" onclick="switchCP('CP_04')">CP_04</button>
+      <button class="suffix-btn" id="cp05Btn" onclick="switchCP('CP_05')">CP_05</button>
+      <button class="suffix-btn" id="cp06Btn" onclick="switchCP('CP_06')">CP_06</button>
+      <button class="mode-toggle" id="modeToggleBtn" title="Switch to Dark Mode">
+        <svg class="icon moon" viewBox="0 0 24 24">
+          <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+        </svg>
+        <svg class="icon sun" viewBox="0 0 24 24">
+          <path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M6.34 6.34L4.93 4.93m12.02 0l-1.42 1.42M6.34 17.66l-1.42 1.42M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="cp-container" id="cpContainer"></div>
+  </div>
+
+  <div class="modal" id="commandModal">
+    <div class="modal-content">
+      <div class="modal-header" id="modalTitle"></div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="modal-btn cancel" id="modalCancel">Cancel</button>
+        <button class="modal-btn" id="modalSubmit">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="warningModal">
+    <div class="modal-content">
+      <div class="modal-header">Warning</div>
+      <div class="modal-body">Shutdown... <span id="countdown">5</span></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const host = location.hostname || "localhost", port = 2409;
+  let selectedCPs = [];
+  let chargerStatus = { 'CP_01': '', 'CP_02': '', 'CP_03': '', 'CP_04': '', 'CP_05': '', 'CP_06': ''  };
+  let toggleStates = { 'CP_01': 'Start', 'CP_02': 'Start', 'CP_03': 'Start','CP_04': 'Start', 'CP_05': 'Start', 'CP_06': 'Start', 'no-cp': 'Start' };
+  let lastHeartbeatTime = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null };
+  let noResponseTimeout = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null  };
+  const wsConnections = {
+    'CP_01': null,
+    'CP_02': null,
+    'CP_03': null,
+    'CP_04': null,
+    'CP_05': null,
+    'CP_06': null
+  };
+  const lastSettings = {
+    'CP_01': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_02': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_03': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_04': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_05': { setConverter: null, setRelay: null, setHMI: null, setLED: null  },
+    'CP_06': { setConverter: null, setRelay: null, setHMI: null, setLED: null  }
+  };
+  const requestCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const responseCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getEVInfoCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getConverterCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getRelayCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getConnectorStatusCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getMeterCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getTemperatureCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getSystemErrorCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const messagesByCP = {
+    'CP_01': { call: [], result: [] },
+    'CP_02': { call: [], result: [] },
+    'CP_03': { call: [], result: [] },
+    'CP_04': { call: [], result: [] },
+    'CP_05': { call: [], result: [] },
+    'CP_06': { call: [], result: [] }
+  };
+  let chargingStatusTimeouts = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null };
+  // Track the last sent HMI status and the charge status when it was sent
+  const hmiSentTracking = { 'CP_01': { status: null, sentAtChargeStatus: null }, 'CP_02': { status: null, sentAtChargeStatus: null }, 'CP_03': { status: null, sentAtChargeStatus: null }, 'CP_04': { status: null, sentAtChargeStatus: null }, 'CP_05': { status: null, sentAtChargeStatus: null }, 'CP_06': { status: null, sentAtChargeStatus: null } };
+
+  function showToast(message) {
+    let toast = document.querySelector('.toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.className = 'toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  function updateActiveButton(){
+    document.getElementById('cp01Btn').classList.toggle('active', selectedCPs.includes('CP_01'));
+    document.getElementById('cp02Btn').classList.toggle('active', selectedCPs.includes('CP_02'));
+    document.getElementById('cp03Btn').classList.toggle('active', selectedCPs.includes('CP_03'));
+    document.getElementById('cp04Btn').classList.toggle('active', selectedCPs.includes('CP_04'));
+    document.getElementById('cp05Btn').classList.toggle('active', selectedCPs.includes('CP_05'));
+    document.getElementById('cp06Btn').classList.toggle('active', selectedCPs.includes('CP_06'));
+  }
+
+  function updateTitle(){
+    document.getElementById('currentCP').textContent = selectedCPs.length > 0 ? selectedCPs.join(', ') : 'No CP Selected';
+  }
+
+  function updateButtonStates(cp) {
+    const setConverterBtn = document.getElementById(`setConverterBtn-${cp}`);
+    const setRelayBtn = document.getElementById(`setRelayBtn-${cp}`);
+    const setHMIBtn = document.getElementById(`setHMIBtn-${cp}`);
+    const setLEDBtn = document.getElementById(`setLEDBtn-${cp}`);
+    
+    if (setConverterBtn) {
+      setConverterBtn.classList.toggle('on', lastSettings[cp].setConverter?.Status === 'On');
+    }
+    if (setRelayBtn) {
+      setRelayBtn.classList.toggle('on', lastSettings[cp].setRelay?.Status === 'On');
+    }
+    if (setHMIBtn) {
+      setHMIBtn.classList.toggle('on', !!lastSettings[cp].setHMI?.Status);
+    }
+    if (setLEDBtn) {
+      setLEDBtn.classList.toggle('on', lastSettings[cp].setLED?.Status === 'On');
+    }
+  }
+
+  function updateCPContainer() {
+    const cpContainer = document.getElementById('cpContainer');
+    cpContainer.innerHTML = '';
+
+    if (selectedCPs.length === 0) {
+        cpContainer.innerHTML = `
+            <div class="cp-section" id="section-no-cp">
+                <div class="content">
+                    <div class="detail" id="detail-no-cp">
+                        <div class="request-nav">
+                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                                <div class="status">
+                                    <span class="status">
+                                        <span class="status-indicator disconnected"></span>
+                                        <span id="connectionStatus-no-cp">No CP Selected</span>
+                                    </span>
+                                </div>
+                                <div class="button-row">
+                                    <span></span><span>&nbsp;&nbsp;Charge Status: </span>
+                                    <span id="chargeStatus-no-cp">N/A</span>
+                                </div>
+                                <div class="button-row">
+                                    <button id="setConverterBtn-no-cp" class="set-converter-btn">SetConverter</button>
+                                    <button id="setRelayBtn-no-cp" class="set-relay-btn">SetRelay</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="setHMIBtn-no-cp" class="set-hmi-btn">SetHMI</button>
+                                    <button id="setLEDBtn-no-cp" class="set-led-btn">SetLED</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="getConverterBtn-no-cp" class="get-converter-btn">GetConverter</button>
+                                    <button id="getRelayBtn-no-cp" class="get-relay-btn">GetRelay</button>
+                                </div>
+                                <div class="button-row">   
+                                    <button id="getConnectorStatusBtn-no-cp" class="get-connector-status-btn">GetConnectorStatus</button>
+                                    <button id="getEVInfoBtn-no-cp" class="get-ev-info-btn">GetEVInfo</button>
+                                </div>
+                                <div class="button-row">    
+                                    <button id="getMeterBtn-no-cp" class="get-meter-btn">GetMeter</button>
+                                    <button id="getTemperatureBtn-no-cp" class="get-temperature-btn">GetTemperature</button>
+                                </div>
+                                <div class="button-row">  
+                                    <button id="getSystemErrorBtn-no-cp" class="get-system-error-btn">GetSystemError</button>
+                                </div>
+                                <div class="button-row">
+                                    <button id="toggleBtn-no-cp" class="toggle-btn">Start</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="subheader">GetEVInfo</div>
+                        <table id="getEVInfo-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetConverter</div>
+                        <table id="getConverter-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetRelay</div>
+                        <table id="getRelay-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetConnectorStatus</div>
+                        <table id="getConnectorStatus-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetMeter</div>
+                        <table id="getMeter-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetTemperature</div>
+                        <table id="getTemperature-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="subheader">GetSystemError</div>
+                        <table id="getSystemError-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        ['setConverterBtn-no-cp', 'setRelayBtn-no-cp', 'setHMIBtn-no-cp', 'setLEDBtn-no-cp', 'toggleBtn-no-cp', 
+         'getConverterBtn-no-cp', 'getRelayBtn-no-cp', 'getConnectorStatusBtn-no-cp', 'getEVInfoBtn-no-cp', 
+         'getMeterBtn-no-cp', 'getTemperatureBtn-no-cp', 'getSystemErrorBtn-no-cp'].forEach(id => {
+            document.getElementById(id).addEventListener('click', () => showToast('Please select CP'));
+        });
+        return;
+    }
+
+    selectedCPs.forEach(cp => {
+        const cpSection = document.createElement('div');
+        cpSection.className = 'cp-section';
+        cpSection.id = `section-${cp}`;
+        cpSection.innerHTML = `
+            <div class="content">
+                <div class="detail" id="detail-${cp}">
+                    <div class="request-nav">
+                        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                            <div class="status">
+                                <span class="status">
+                                    <span class="status-indicator" id="connectionIndicator-${cp}"></span>
+                                    <span id="connectionStatus-${cp}">${wsConnections[cp]?.readyState === WebSocket.OPEN ? `Connected to ${cp}` : `Disconnected from ${cp}`}</span>
+                                </span>
+                            </div>
+                            <div class="button-row">
+                                <span></span><span>&nbsp;&nbsp;Charge Status: </span>
+                                <span id="chargeStatus-${cp}">${chargerStatus[cp] || 'N/A'}</span>
+                            </div>
+                            <div class="button-row">
+                                <button id="setConverterBtn-${cp}" class="set-converter-btn">SetConverter</button>
+                                <button id="setRelayBtn-${cp}" class="set-relay-btn">SetRelay</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="setHMIBtn-${cp}" class="set-hmi-btn">SetHMI</button>
+                                <button id="setLEDBtn-${cp}" class="set-led-btn">SetLED</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="getConverterBtn-${cp}" class="get-converter-btn">GetConverter</button>
+                                <button id="getRelayBtn-${cp}" class="get-relay-btn">GetRelay</button>
+
+                            </div>
+                            <div class="button-row">
+                                <button id="getConnectorStatusBtn-${cp}" class="get-connector-status-btn">GetConnectorStatus</button>
+                                <button id="getEVInfoBtn-${cp}" class="get-ev-info-btn">GetEVInfo</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="getMeterBtn-${cp}" class="get-meter-btn">GetMeter</button>
+                                <button id="getTemperatureBtn-${cp}" class="get-temperature-btn">GetTemperature</button>
+                            </div>
+                            <div class="button-row">  
+                                <button id="getSystemErrorBtn-${cp}" class="get-system-error-btn">GetSystemError</button>
+                            </div>
+                            <div class="button-row">
+                                <button id="toggleBtn${cp}" class="toggle-btn ${toggleStates[cp] === 'Stop' ? 'stop' : ''}" data-cp="${cp}">${toggleStates[cp]}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subheader">GetEVInfo</div>
+                    <table id="getEVInfo-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetConverter</div>
+                    <table id="getConverter-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetRelay</div>
+                    <table id="getRelay-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetConnectorStatus</div>
+                    <table id="getConnectorStatus-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetMeter</div>
+                    <table id="getMeter-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetTemperature</div>
+                    <table id="getTemperature-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div class="subheader">GetSystemError</div>
+                    <table id="getSystemError-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        cpContainer.appendChild(cpSection);
+
+      document.getElementById(`toggleBtn${cp}`).addEventListener('click', () => handleToggle(cp));
+      document.getElementById(`setConverterBtn-${cp}`).addEventListener('click', () => showModal('setConverter', cp));
+      document.getElementById(`setRelayBtn-${cp}`).addEventListener('click', () => showModal('setRelay', cp));
+      document.getElementById(`setHMIBtn-${cp}`).addEventListener('click', () => showModal('setHMI', cp));
+      document.getElementById(`setLEDBtn-${cp}`).addEventListener('click', () => showModal('setLED', cp));
+      document.getElementById(`getConverterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConverter', cp));
+      document.getElementById(`getRelayBtn-${cp}`).addEventListener('click', () => handleGetCommand('getRelay', cp));
+      document.getElementById(`getConnectorStatusBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConnectorStatus', cp));
+      document.getElementById(`getEVInfoBtn-${cp}`).addEventListener('click', () => handleGetCommand('getEVInfo', cp));
+      document.getElementById(`getMeterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getMeter', cp));
+      document.getElementById(`getTemperatureBtn-${cp}`).addEventListener('click', () => handleGetCommand('getTemperature', cp));
+      document.getElementById(`getSystemErrorBtn-${cp}`).addEventListener('click', () => handleGetCommand('getSystemError', cp));
+      updateButtonStates(cp);
+    });
+
+    updateConnectionStatus();
+  }
+
+  function updateConnectionStatus(){
+    selectedCPs.forEach(cp => {
+      const statusElement = document.getElementById(`connectionStatus-${cp}`);
+      const indicatorElement = document.getElementById(`connectionIndicator-${cp}`);
+      if (statusElement && indicatorElement) {
+        const isWebSocketOpen = wsConnections[cp]?.readyState === WebSocket.OPEN;
+        const now = Date.now();
+        const hasRecentHeartbeat = lastHeartbeatTime[cp] && (now - lastHeartbeatTime[cp] <= 15000);
+        if (isWebSocketOpen && hasRecentHeartbeat) {
+          statusElement.textContent = `Connected to ${cp}`;
+          indicatorElement.className = 'status-indicator connected';
+          console.log(`Status updated to Connected for ${cp} at ${nowTs()}`);
+        } else {
+          statusElement.textContent = `Disconnected from ${cp}`;
+          indicatorElement.className = 'status-indicator disconnected';
+          console.log(`Status updated to Disconnected for ${cp} at ${nowTs()} (WebSocket: ${isWebSocketOpen}, Recent Heartbeat: ${hasRecentHeartbeat})`);
+        }
+      } else {
+        console.warn(`Status elements not found for ${cp}`);
+      }
+    });
+  }
+
+  function getWebSocketUrl(cp){
+    return `ws://${host}:${port}/${cp}`;
+  }
+
+  function startNoResponseTimeout(cp) {
+    if (noResponseTimeout[cp]) {
+      clearTimeout(noResponseTimeout[cp]);
+    }
+    noResponseTimeout[cp] = setTimeout(() => {
+      if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
+        const now = Date.now();
+        if (!lastHeartbeatTime[cp] || (now - lastHeartbeatTime[cp] >= 15000)) {
+          if (selectedCPs.includes(cp)) {
+            appendLog(`No heartbeat received for ${cp}`, 'status', cp);
+            console.log(`No heartbeat timeout triggered for ${cp} at ${nowTs()}`);
+            updateConnectionStatus();
+          }
+          startNoResponseTimeout(cp);
+        }
+      }
+    }, 15000);
+  }
+
+  window.switchCP = function(cp){
+    if (selectedCPs.some(c => chargerStatus[c] === 'Charging')) {
+      showToast('Not allow to switch CP during Charging');
+      return;
+    }
+    if (selectedCPs.includes(cp)) {
+      selectedCPs = selectedCPs.filter(c => c !== cp);
+    } else {
+      selectedCPs.push(cp);
+    }
+
+    selectedCPs.forEach(cp => {
+      if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+        connect(cp);
+      }
+    });
+
+    ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'].forEach(otherCP => {
+      if (!selectedCPs.includes(otherCP) && wsConnections[otherCP] && wsConnections[otherCP].readyState === WebSocket.OPEN) {
+        wsConnections[otherCP].close();
+        wsConnections[otherCP] = null;
+        if (noResponseTimeout[otherCP]) {
+          clearTimeout(noResponseTimeout[otherCP]);
+          noResponseTimeout[otherCP] = null;
+        }
+      }
+    });
+
+    updateActiveButton();
+    updateTitle();
+    updateCPContainer();
+  };
+
+  document.getElementById('modeToggleBtn').addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark-mode');
+    document.getElementById('modeToggleBtn').title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+  });
+
+  function handleShutdown(cp, isEmergency = false) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      return;
+    }
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
+      return;
+    }
+
+    if (!isEmergency) {
+      const confirmStop = confirm(`Are you sure you want to stop ${cp}?`);
+      if (!confirmStop) {
+        return;
+      }
+    }
+
+    const warningModal = document.getElementById('warningModal');
+    const countdownElement = document.getElementById('countdown');
+    warningModal.style.display = 'flex';
+    
+    document.querySelectorAll('button, select, input').forEach(el => {
+      el.disabled = true;
+      el.classList.add('disabled-btn');
+    });
+
+    let countdown = 5;
+    countdownElement.textContent = countdown;
+
+    wsConnections[cp].send('stop');
+    const stopConverterMessage = [
+      2,
+      ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+        (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+      ),
+      "DataTransfer",
+      {
+        "vendorId": "Totex",
+        "messageId": "1",
+        "data": {
+          command: "SetConverter",
+          payload: { ChargerID: cp, Status: "Off", Voltage: 0, Current: 0 }
+        }
+      }
+    ];
+    wsConnections[cp].send(JSON.stringify(stopConverterMessage));
+    lastSettings[cp].setConverter = { Status: "Off", Voltage: 0, Current: 0 }
+    setTimeout(() => {
+      const stopRelayMessage = [
+        2,
+        ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+          (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+        ),
+        "DataTransfer",
+        {
+          "vendorId": "Totex",
+          "messageId": "1",
+          "data": {
+            command: "SetRelay",
+            payload: { ChargerID: cp, Status: "Off" }
+          }
+        }
+      ];
+      wsConnections[cp].send(JSON.stringify(stopRelayMessage));
+      lastSettings[cp].setRelay = { Status: "Off" };
+    }, 5000);
+
+    toggleStates[cp] = 'Start';
+    document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+    document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      countdownElement.textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(countdownInterval);
+        warningModal.style.display = 'none';
+        document.querySelectorAll('button, select, input').forEach(el => {
+          el.disabled = false;
+          el.classList.remove('disabled-btn');
+        });
+      }
+    }, 1000);
+
+    showToast(isEmergency ? `Emergency Stop All CPs` : `Stop for ${cp}`);
+    updateButtonStates(cp);
+  }
+
+  function handleToggle(cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      return;
+    }
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
+      return;
+    }
+    const action = toggleStates[cp] === 'Start' ? 'start' : 'stop';
+    if (action === 'start' && chargerStatus[cp] !== 'Preparing') {
+      showToast(`Charger ${cp} not ready`);
+      return;
+    }
+    if (action === 'stop') {
+      handleShutdown(cp, false);
+    } else {
+      toggleStates[cp] = 'Stop';
+      document.getElementById(`toggleBtn${cp}`).textContent = toggleStates[cp];
+      document.getElementById(`toggleBtn${cp}`).classList.toggle('stop', toggleStates[cp] === 'Stop');
+      wsConnections[cp].send(action);
+      
+      chargingStatusTimeouts[cp] = setTimeout(() => {
+        if (chargerStatus[cp] !== 'Charging') {
+          toggleStates[cp] = 'Start';
+          document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+          document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+          showToast(`Not charging status for ${cp}`);
+        }
+      }, 3000);
+
+    }
+  }
+
+  function handleEmergencyAll() {
+    ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'].forEach(cp => {
+      if (selectedCPs.includes(cp)) {
+        handleShutdown(cp, true);
+      }
+    });
+  }
+
+  function handleGetCommand(command, cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      return;
+    }
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
+      return;
+    }
+    wsConnections[cp].send(command);
+  }
+
+  let currentModalCommand = null;
+  let currentModalCP = null;
+
+  document.getElementById('modalSubmit').addEventListener('click', () => {
+    const cp = currentModalCP;
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      document.getElementById('commandModal').style.display = 'none';
+      return;
+    }
+    if (!wsConnections[cp] || wsConnections[cp].readyState !== WebSocket.OPEN) {
+      showToast(`No connection to ${cp}`);
+      document.getElementById('commandModal').style.display = 'none';
+      return;
+    }
+    let command = currentModalCommand;
+    let payload = { ChargerID: cp };
+    if (command === 'setConverter') {
+      const converterStatus = document.getElementById('converterStatus');
+      const voltage = document.getElementById('voltage');
+      const current = document.getElementById('current');
+      if (!converterStatus || !voltage || !current) {
+        showToast('Some fields are missing');
+        document.getElementById('commandModal').style.display = 'none';
+        return;
+      }
+      payload.Status = converterStatus.checked ? 'On' : 'Off';
+      payload.Voltage = parseInt(voltage.value);
+      payload.Current = parseInt(current.value);
+      lastSettings[cp].setConverter = { Status: payload.Status, Voltage: payload.Voltage, Current: payload.Current };
+    } else if (command === 'setRelay') {
+      const relayStatus = document.getElementById('relayStatus');
+      if (!relayStatus) {
+        showToast('Some fields are missing');
+        document.getElementById('commandModal').style.display = 'none';
+        return;
+      }
+      payload.Status = relayStatus.checked ? 'On' : 'Off';
+      lastSettings[cp].setRelay = { Status: payload.Status };
+    } else if (command === 'setHMI') {
+      const HMIStatus = document.getElementById('HMIStatus');
+      if (!HMIStatus || HMIStatus.value === '') {
+        showToast('Please select one status');
+        document.getElementById('commandModal').style.display = 'none';
+        return;
+      }
+      payload.Status = HMIStatus.value;
+      lastSettings[cp].setHMI = { Status: payload.Status };
+      // Update tracking for manual SetHMI: mark it as sent manually, not tied to specific charge status
+      hmiSentTracking[cp].status = payload.Status;
+      hmiSentTracking[cp].sentAtChargeStatus = 'manual';
+    } else if (command === 'setLED') {
+      const LEDStatus = document.getElementById('LEDStatus');
+      if (!LEDStatus) {
+        showToast('Some fields are missing');
+        document.getElementById('commandModal').style.display = 'none';
+        return;
+      }
+      payload.Status = LEDStatus.checked ? 'On' : 'Off';
+      lastSettings[cp].setLED = { Status: payload.Status };
+    }
+    const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+      (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+    );
+    const message = [
+      2,
+      uniqueId,
+      "DataTransfer",
+      {
+        "vendorId": "Totex",
+        "messageId": "1",
+        "data": {
+          command: command === 'setConverter' ? 'SetConverter' : 
+                   command === 'setRelay' ? 'SetRelay' : 
+                   command === 'setHMI' ? 'SetHMI' : 
+                   command === 'setLED' ? 'SetLED' : 
+                   'SetLED',
+          payload: payload
+        }
+      }
+    ];
+    wsConnections[cp].send(JSON.stringify(message));
+    document.getElementById('commandModal').style.display = 'none';
+    updateButtonStates(cp);
+  });
+
+  document.getElementById('modalCancel').addEventListener('click', () => {
+    document.getElementById('commandModal').style.display = 'none';
+  });
+
+  document.getElementById('emergencyBtnAll').addEventListener('click', handleEmergencyAll);
+
+  function showModal(command, cp) {
+    if (!selectedCPs.includes(cp)) {
+      showToast(`Please select ${cp} in nav`);
+      return;
+    }
+    currentModalCommand = command;
+    currentModalCP = cp;
+    document.getElementById('modalTitle').textContent = command === 'setConverter' ? 'Set Converter' : 
+                                                     command === 'setRelay' ? 'Set Relay' : 
+                                                     command === 'setLED' ? 'Set LED' :
+                                                     'Set HMI';
+    document.getElementById('modalBody').innerHTML = '';
+    const settings = lastSettings[cp][command];
+    if (command === 'setConverter') {
+      const status = settings?.Status === 'On' ? 'checked' : '';
+      const voltage = settings?.Voltage ?? 423;
+      const current = settings?.Current ?? 10;
+      document.getElementById('modalBody').innerHTML = `
+        <div class="switch-container">
+          <label for="converterStatus">Status:</label>
+          <label class="switch">
+            <input type="checkbox" id="converterStatus" ${status}>
+            <span class="slider"></span>
+          </label>
+          <span>${status ? 'On' : 'Off'}</span>
+        </div>
+        <label for="voltage">Voltage (V):</label>
+        <input type="number" id="voltage" value="${voltage}" min="0" step="1">
+        <label for="current">Current (A):</label>
+        <input type="number" id="current" value="${current}" min="0" step="1">
+      `;
+    } else if (command === 'setRelay') {
+      const status = settings?.Status === 'On' ? 'checked' : '';
+      document.getElementById('modalBody').innerHTML = `
+        <div class="switch-container">
+          <label for="relayStatus">Status:</label>
+          <label class="switch">
+            <input type="checkbox" id="relayStatus" ${status}>
+            <span class="slider"></span>
+          </label>
+          <span>${status ? 'On' : 'Off'}</span>
+        </div>
+      `;
+    } else if (command === 'setHMI') {
+      const status = settings?.Status ?? '';
+      document.getElementById('modalBody').innerHTML = `
+        <label for="HMIStatus">Status:</label>
+        <select id="HMIStatus">
+          <option value="" ${!status ? 'selected' : ''}>Select Status</option>
+          <option value="Rapid" ${status === 'Rapid' ? 'selected' : ''}>Rapid</option>
+          <option value="Fast" ${status === 'Fast' ? 'selected' : ''}>Fast</option>
+          <option value="Available" ${status === 'Available' ? 'selected' : ''}>Available</option>
+          <option value="Engaged" ${status === 'Engaged' ? 'selected' : ''}>Engaged</option>
+          <option value="Off" ${status === 'Off' ? 'selected' : ''}>Off</option>
+        </select>
+      `;
+    } else if (command === 'setLED') {
+      const status = settings?.Status === 'On' ? 'checked' : '';
+      document.getElementById('modalBody').innerHTML = `
+        <div class="switch-container">
+          <label for="LEDStatus">Status:</label>
+          <label class="switch">
+            <input type="checkbox" id="LEDStatus" ${status}>
+            <span class="slider"></span>
+          </label>
+          <span>${status ? 'On' : 'Off'}</span>
+        </div>
+      `;
+    }
+    const statusSwitch = document.getElementById('modalBody').querySelector('#converterStatus, #relayStatus');
+    if (statusSwitch) {
+      statusSwitch.addEventListener('change', () => {
+        const label = statusSwitch.parentElement.nextElementSibling;
+        label.textContent = statusSwitch.checked ? 'On' : 'Off';
+      });
+    }
+    document.getElementById('commandModal').style.display = 'flex';
+  }
+
+  function nowTs(){
+    const d = new Date();
+    d.setHours(d.getHours() + 8);
+    const z = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+  }
+
+  function appendLog(msg, cls = '', cp) {
+    if (!selectedCPs.includes(cp)) return;
+    const log = document.getElementById(`log-${cp}`);
+    if (!log) return;
+    const e = document.createElement('div'),
+          ts = document.createElement('span'),
+          ms = document.createElement('span');
+    e.className = 'entry' + (cls ? ' ' + cls : '');
+    ts.className = 'ts';
+    ts.textContent = nowTs();
+    ms.className = 'msg';
+    ms.textContent = msg;
+    e.append(ts, ms);
+    log.appendChild(e);
+  }
+
+  function flattenObject(obj, parent = '', res = {}) {
+    for (let key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        if (key === 'ChargerID') continue;
+        const propName = parent ? `${parent}.${key}` : key;
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          flattenObject(obj[key], propName, res);
+        } else {
+          res[propName] = obj[key];
+        }
+      }
+    }
+    return res;
+  }
+
+  function setLatest(cp, desc, raw, type) {
+    desc.innerHTML = '';
+
+    let o;
+    try {
+      o = JSON.parse(raw);
+    } catch {
+      const r = document.createElement('tr'),
+            n = document.createElement('td'),
+            v = document.createElement('td');
+      n.textContent = 'raw';
+      v.textContent = raw;
+      r.append(n, v);
+      desc.appendChild(r);
+      return;
+    }
+
+    if (Array.isArray(o)) {
+      if (o[0] === 2 || o[0] === 3) {
+        let payload = null;
+        if (type === 'call' && o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.payload) {
+          payload = o[3].data.payload;
+          Object.entries(payload).forEach(([k, v]) => {
+            if (k === 'ChargerID') return;
+            const r = document.createElement('tr'),
+                  n = document.createElement('td'),
+                  v2 = document.createElement('td');
+            n.textContent = k;
+            v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            r.append(n, v2);
+            desc.appendChild(r);
+          });
+        } else if (type === 'result' && o[2] && typeof o[2] === 'object' && o[2].data) {
+          let data = o[2].data;
+          if (typeof data === 'string') {
+            try {
+              data = JSON.parse(data);
+            } catch {
+              console.error('Failed to parse data field:', data);
+              return;
+            }
+          }
+          if (data.command === 'GetEVInfo' && data.payload) {
+            const desiredOrder = ['Capacity', 'SoC', 'SoH', 'ChargeVoltage', 'ChargeCurrent'];
+            desiredOrder.forEach(key => {
+              if (key in data.payload) {
+                const r = document.createElement('tr'),
+                      n = document.createElement('td'),
+                      v = document.createElement('td');
+                n.textContent = key;
+                v.textContent = String(data.payload[key]);
+                r.append(n, v);
+                desc.appendChild(r);
+              }
+            });
+          } else if (data.payload) {
+            const flattenedPayload = flattenObject(data.payload);
+            Object.entries(flattenedPayload).forEach(([k, v]) => {
+              const r = document.createElement('tr'),
+                    n = document.createElement('td'),
+                    v2 = document.createElement('td');
+              n.textContent = k;
+              v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+              r.append(n, v2);
+              desc.appendChild(r);
+            });
+          }
+        }
+      }
+    } else if (o && typeof o === 'object') {
+      const flattenedObj = flattenObject(o);
+      Object.entries(flattenedObj).forEach(([k, v]) => {
+        const r = document.createElement('tr'),
+              n = document.createElement('td'),
+              v2 = document.createElement('td');
+        n.textContent = k;
+        v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        r.append(n, v2);
+        desc.appendChild(r);
+      });
+    } else {
+      const r = document.createElement('tr'),
+            n = document.createElement('td'),
+            v2 = document.createElement('td');
+      n.textContent = 'value';
+      v2.textContent = String(o);
+      r.append(n, v2);
+      desc.appendChild(r);
+    }
+  }
+
+  function categorize(raw, cp) {
+    let o;
+    try {
+      o = JSON.parse(raw);
+    } catch {
+      console.error(`Failed to parse message for ${cp}:`, raw);
+      return;
+    }
+    if (!Array.isArray(o)) {
+      console.warn(`Invalid message format for ${cp}:`, raw);
+      return;
+    }
+    const t0 = o[0], ts = nowTs();
+    if (t0 === 2 || t0 === 3) {
+      let cmd = o[2];
+      if (o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.command) {
+        cmd = o[3].data.command;
+      } else if (o[2] && typeof o[2] === 'object' && o[2].data) {
+        let data = o[2].data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            console.error(`Failed to parse data field for ${cp}:`, data);
+            return;
+          }
+        }
+        if (data.command) {
+          cmd = data.command;
+        }
+      }
+      if (cmd === 'Heartbeat') {
+        lastHeartbeatTime[cp] = Date.now();
+        console.log(`Heartbeat received for ${cp} at ${ts}, updating lastHeartbeatTime`);
+        appendLog(raw, '', cp);
+        startNoResponseTimeout(cp);
+        if (selectedCPs.includes(cp)) {
+          updateConnectionStatus();
+          // Determine the desired HMI status based on current charge status
+          const currentChargeStatus = chargerStatus[cp];
+          let desiredHMI;
+          if (currentChargeStatus === 'Available' || currentChargeStatus === 'Preparing') {
+            desiredHMI = 'Available';
+          } else if (currentChargeStatus === 'Charging') {
+            desiredHMI = 'Engaged';
+          } else {
+            // For other statuses, don't auto-send
+            return;
+          }
+          // Check if we need to send SetHMI: only if charge status changed since last auto-send
+          const tracking = hmiSentTracking[cp];
+          const isManual = tracking.sentAtChargeStatus === 'manual';
+          if (!isManual && (tracking.sentAtChargeStatus !== currentChargeStatus)) {
+            // Send auto SetHMI
+            if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
+              const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+                (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+              );
+              const setHMIMessage = [
+                2,
+                uniqueId,
+                "DataTransfer",
+                {
+                  "vendorId": "Totex",
+                  "messageId": "1",
+                  "data": {
+                    command: "SetHMI",
+                    payload: { ChargerID: cp, Status: desiredHMI }
+                  }
+                }
+              ];
+              wsConnections[cp].send(JSON.stringify(setHMIMessage));
+              lastSettings[cp].setHMI = { Status: desiredHMI };
+              // Update tracking
+              tracking.status = desiredHMI;
+              tracking.sentAtChargeStatus = currentChargeStatus;
+              appendLog(`Sent auto SetHMI with Status: ${desiredHMI} for ${cp} (charge status: ${currentChargeStatus})`, '', cp);
+              updateButtonStates(cp);
+            }
+          }
+        }
+        return;
+      }
+      if (cmd === 'StopTransaction') {
+        toggleStates[cp] = 'Start';
+        document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+        document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+        showToast(`Received StopTransaction from ${cp}`);
+        updateButtonStates(cp);
+        // Reset tracking on stop to allow new auto SetHMI when status changes
+        hmiSentTracking[cp].status = null;
+        hmiSentTracking[cp].sentAtChargeStatus = null;
+      } else if (cmd === 'StartTransaction') {
+        toggleStates[cp] = 'Stop';
+        document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
+        document.getElementById(`toggleBtn${cp}`).classList.add('stop');
+        // Reset tracking on start to allow new auto SetHMI when status changes
+        hmiSentTracking[cp].status = null;
+        hmiSentTracking[cp].sentAtChargeStatus = null;
+      }
+      if (t0 === 2) {
+        if (cmd === 'StatusNotification' && o[3] && o[3].status) {
+          const newStatus = o[3].status;
+          const oldStatus = chargerStatus[cp];
+          chargerStatus[cp] = newStatus;
+          document.getElementById(`chargeStatus-${cp}`).textContent = chargerStatus[cp] || 'N/A';
+          if (newStatus === 'Charging' && chargingStatusTimeouts[cp]) {
+            clearTimeout(chargingStatusTimeouts[cp]);
+            chargingStatusTimeouts[cp] = null;
+          }
+          // If charge status changed, reset auto HMI tracking to allow sending new auto SetHMI on next heartbeat
+          if (newStatus !== oldStatus) {
+            const tracking = hmiSentTracking[cp];
+            if (tracking.sentAtChargeStatus !== 'manual') {
+              tracking.sentAtChargeStatus = null;
+              tracking.status = null;
+            }
+          }
+        }
+        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+          requestCommands[cp].add(cmd);
+          messagesByCP[cp].call.push({ command: cmd, raw, ts });
+        }
+      } else if (t0 === 3) {
+        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+          if (cmd === 'GetEVInfo') {
+            getEVInfoCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getEVInfoTable');
+            }
+          } else if (cmd === 'GetConverter') {
+            getConverterCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getConverterTable');
+            }
+          } else if (cmd === 'GetRelay') {
+            getRelayCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getRelayTable');
+            }
+          } else if (cmd === 'GetConnectorStatus') {
+            getConnectorStatusCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getConnectorStatusTable');
+            }
+          } else if (cmd === 'GetMeter') {
+            getMeterCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getMeterTable');
+            }
+          } else if (cmd === 'GetTemperature') {
+            getTemperatureCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getTemperatureTable');
+            } 
+          } else if (cmd === 'GetSystemError') {
+            getSystemErrorCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getSystemErrorTable');
+            } 
+          } else {
+            responseCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          }
+        } else {
+          messagesByCP[cp].result.push({ command: null, raw, ts });
+        }
+      }
+      console.log(`Calling updateConnectionStatus for ${cp} after message`);
+      updateConnectionStatus();
+    }
+  }
+
+  function updateTable(cp, type) {
+    if (!document.getElementById(`section-${cp}`)) return;
+    const tableType = type === 'getEVInfoTable' ? 'getEVInfo' : 
+                     type === 'getConverterTable' ? 'getConverter' : 
+                     type === 'getRelayTable' ? 'getRelay' : 
+                     type === 'getConnectorStatusTable' ? 'getConnectorStatus' : 
+                     type === 'getMeterTable' ? 'getMeter' : 
+                     type === 'getTemperatureTable' ? 'getTemperature' : 
+                     type === 'getSystemErrorTable' ? 'getSystemError' : type;
+    const desc = document.getElementById(`${tableType}-desc-${cp}`)?.querySelector('tbody');
+
+    if (!desc) return;
+    desc.innerHTML = '';
+    const arr = messagesByCP[cp][type === 'getEVInfoTable' || type === 'getConverterTable' || type === 'getRelayTable' || type === 'getConnectorStatusTable' || type === 'getMeterTable' || type === 'getTemperatureTable'  || type === 'getSystemErrorTable' ? 'result' : type];
+    if (arr.length > 0) {
+      const latestMessage = arr[arr.length - 1];
+      setLatest(cp, desc, latestMessage.raw, type === 'getEVInfoTable' || type === 'getConverterTable' || type === 'getRelayTable' || type === 'getConnectorStatusTable' || type === 'getMeterTable' || type === 'getTemperatureTable'  || type === 'getSystemErrorTable' ? 'result' : type);
+    }
+  }
+
+  function connect(cp) {
+    if (wsConnections[cp] && wsConnections[cp].readyState === WebSocket.OPEN) {
+      return;
+    }
+    wsConnections[cp] = new WebSocket(getWebSocketUrl(cp));
+    wsConnections[cp].onopen = () => {
+      lastHeartbeatTime[cp] = null;
+      console.log(`WebSocket opened for ${cp} at ${nowTs()}`);
+      startNoResponseTimeout(cp);
+      if (selectedCPs.includes(cp)) {
+        updateConnectionStatus();
+        updateTable(cp, 'getEVInfoTable');
+        updateTable(cp, 'getConverterTable');
+        updateTable(cp, 'getRelayTable');
+        updateTable(cp, 'getConnectorStatusTable');
+        updateTable(cp, 'getMeterTable');
+        updateTable(cp, 'getTemperatureTable');
+        updateTable(cp, 'getSystemErrorTable');
+      }
+    };
+    wsConnections[cp].onmessage = (ev) => {
+      if (selectedCPs.includes(cp)) {
+        console.log(`WebSocket message received for ${cp}: ${ev.data}`);
+        appendLog(ev.data, '', cp);
+        categorize(ev.data, cp);
+      }
+    };
+    wsConnections[cp].onclose = () => {
+      wsConnections[cp] = null;
+      if (noResponseTimeout[cp]) {
+        clearTimeout(noResponseTimeout[cp]);
+        noResponseTimeout[cp] = null;
+      }
+      lastHeartbeatTime[cp] = null;
+      console.log(`WebSocket closed for ${cp} at ${nowTs()}`);
+      if (selectedCPs.includes(cp)) {
+        updateConnectionStatus();
+      }
+      setTimeout(() => {
+        if (selectedCPs.includes(cp)) {
+          connect(cp);
+        }
+      }, 3000);
+    };
+    wsConnections[cp].onerror = (err) => {
+      console.error(`WebSocket error for ${cp}:`, err);
+      if (selectedCPs.includes(cp)) {
+        appendLog(`WebSocket error for ${cp}`, 'status', cp);
+        updateConnectionStatus();
+      }
+    };
+  }
+
+  function autoSendGetCommands(cp) {
+    const commands = [
+      'getConverter',
+      'getRelay',
+      'getConnectorStatus',
+      'getEVInfo',
+      'getMeter',
+      'getTemperature',
+      'getSystemError'
+    ];
+    let index = 0;
+
+    function sendNextCommand() {
+      if (index < commands.length && selectedCPs.includes(cp) && wsConnections[cp]?.readyState === WebSocket.OPEN) {
+        handleGetCommand(commands[index], cp);
+        index++;
+        setTimeout(sendNextCommand, 10000);
+      } else {
+        index = 0;
+        setTimeout(sendNextCommand, 10000);
+      }
+    }
+
+    sendNextCommand();
+  }
+
+  selectedCPs = ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'];
+  ['CP_01', 'CP_02', 'CP_03','CP_04', 'CP_05', 'CP_06'].forEach(cp => {
+    connect(cp);
+    autoSendGetCommands(cp);
+  });
+  updateActiveButton();
+  updateTitle();
+  updateCPContainer();
+})();
+</script>
+</body>
+</html>
