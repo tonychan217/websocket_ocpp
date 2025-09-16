@@ -685,6 +685,8 @@
     'CP_06': { call: [], result: [] }
   };
   let chargingStatusTimeouts = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null };
+  // Track the last sent HMI status and the charge status when it was sent
+  const hmiSentTracking = { 'CP_01': { status: null, sentAtChargeStatus: null }, 'CP_02': { status: null, sentAtChargeStatus: null }, 'CP_03': { status: null, sentAtChargeStatus: null }, 'CP_04': { status: null, sentAtChargeStatus: null }, 'CP_05': { status: null, sentAtChargeStatus: null }, 'CP_06': { status: null, sentAtChargeStatus: null } };
 
   function showToast(message) {
     let toast = document.querySelector('.toast');
@@ -1205,6 +1207,9 @@
       }
       payload.Status = HMIStatus.value;
       lastSettings[cp].setHMI = { Status: payload.Status };
+      // Update tracking for manual SetHMI: mark it as sent manually, not tied to specific charge status
+      hmiSentTracking[cp].status = payload.Status;
+      hmiSentTracking[cp].sentAtChargeStatus = 'manual';
     } else if (command === 'setLED') {
       const LEDStatus = document.getElementById('LEDStatus');
       if (!LEDStatus) {
@@ -1455,152 +1460,184 @@
   }
 
   function categorize(raw, cp) {
-  let o;
-  try {
-    o = JSON.parse(raw);
-  } catch {
-    console.error(`Failed to parse message for ${cp}:`, raw);
-    return;
-  }
-  if (!Array.isArray(o)) {
-    console.warn(`Invalid message format for ${cp}:`, raw);
-    return;
-  }
-  const t0 = o[0], ts = nowTs();
-  if (t0 === 2 || t0 === 3) {
-    let cmd = o[2];
-    if (o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.command) {
-      cmd = o[3].data.command;
-    } else if (o[2] && typeof o[2] === 'object' && o[2].data) {
-      let data = o[2].data;
-      if (typeof data === 'string') {
-        try {
-          data = JSON.parse(data);
-        } catch {
-          console.error(`Failed to parse data field for ${cp}:`, data);
-          return;
-        }
-      }
-      if (data.command) {
-        cmd = data.command;
-      }
-    }
-    if (cmd === 'Heartbeat') {
-      lastHeartbeatTime[cp] = Date.now();
-      console.log(`Heartbeat received for ${cp} at ${ts}, updating lastHeartbeatTime`);
-      appendLog(raw, '', cp);
-      startNoResponseTimeout(cp);
-      if (selectedCPs.includes(cp)) {
-        updateConnectionStatus();
-        // Send SetHMI after receiving heartbeat
-        if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
-          const hmiStatus = (chargerStatus[cp] === 'Available' || chargerStatus[cp] === 'Preparing') ? 'Available' : 'Engaged';
-          const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-            (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-          );
-          const setHMIMessage = [
-            2,
-            uniqueId,
-            "DataTransfer",
-            {
-              "vendorId": "Totex",
-              "messageId": "1",
-              "data": {
-                command: "SetHMI",
-                payload: { ChargerID: cp, Status: hmiStatus }
-              }
-            }
-          ];
-          wsConnections[cp].send(JSON.stringify(setHMIMessage));
-          lastSettings[cp].setHMI = { Status: hmiStatus };
-          appendLog(`Sent SetHMI with Status: ${hmiStatus} for ${cp}`, '', cp);
-          updateButtonStates(cp);
-        } else {
-          appendLog(`Cannot send SetHMI for ${cp}: No active WebSocket connection`, 'status', cp);
-        }
-      }
+    let o;
+    try {
+      o = JSON.parse(raw);
+    } catch {
+      console.error(`Failed to parse message for ${cp}:`, raw);
       return;
     }
-    if (cmd === 'StopTransaction') {
-      toggleStates[cp] = 'Start';
-      document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
-      document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
-      showToast(`Received StopTransaction from ${cp}`);
-      updateButtonStates(cp);
-    } else if (cmd === 'StartTransaction') {
-      toggleStates[cp] = 'Stop';
-      document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
-      document.getElementById(`toggleBtn${cp}`).classList.add('stop');
+    if (!Array.isArray(o)) {
+      console.warn(`Invalid message format for ${cp}:`, raw);
+      return;
     }
-    if (t0 === 2) {
-      if (cmd === 'StatusNotification' && o[3] && o[3].status) {
-        chargerStatus[cp] = o[3].status;
-        document.getElementById(`chargeStatus-${cp}`).textContent = chargerStatus[cp] || 'N/A';
-        if (o[3].status === 'Charging' && chargingStatusTimeouts[cp]) {
-          clearTimeout(chargingStatusTimeouts[cp]);
-          chargingStatusTimeouts[cp] = null;
+    const t0 = o[0], ts = nowTs();
+    if (t0 === 2 || t0 === 3) {
+      let cmd = o[2];
+      if (o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.command) {
+        cmd = o[3].data.command;
+      } else if (o[2] && typeof o[2] === 'object' && o[2].data) {
+        let data = o[2].data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            console.error(`Failed to parse data field for ${cp}:`, data);
+            return;
+          }
+        }
+        if (data.command) {
+          cmd = data.command;
         }
       }
-      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
-        requestCommands[cp].add(cmd);
-        messagesByCP[cp].call.push({ command: cmd, raw, ts });
+      if (cmd === 'Heartbeat') {
+        lastHeartbeatTime[cp] = Date.now();
+        console.log(`Heartbeat received for ${cp} at ${ts}, updating lastHeartbeatTime`);
+        appendLog(raw, '', cp);
+        startNoResponseTimeout(cp);
+        if (selectedCPs.includes(cp)) {
+          updateConnectionStatus();
+          // Determine the desired HMI status based on current charge status
+          const currentChargeStatus = chargerStatus[cp];
+          let desiredHMI;
+          if (currentChargeStatus === 'Available' || currentChargeStatus === 'Preparing') {
+            desiredHMI = 'Available';
+          } else if (currentChargeStatus === 'Charging') {
+            desiredHMI = 'Engaged';
+          } else {
+            // For other statuses, don't auto-send
+            return;
+          }
+          // Check if we need to send SetHMI: only if charge status changed since last auto-send
+          const tracking = hmiSentTracking[cp];
+          const isManual = tracking.sentAtChargeStatus === 'manual';
+          if (!isManual && (tracking.sentAtChargeStatus !== currentChargeStatus)) {
+            // Send auto SetHMI
+            if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
+              const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+                (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+              );
+              const setHMIMessage = [
+                2,
+                uniqueId,
+                "DataTransfer",
+                {
+                  "vendorId": "Totex",
+                  "messageId": "1",
+                  "data": {
+                    command: "SetHMI",
+                    payload: { ChargerID: cp, Status: desiredHMI }
+                  }
+                }
+              ];
+              wsConnections[cp].send(JSON.stringify(setHMIMessage));
+              lastSettings[cp].setHMI = { Status: desiredHMI };
+              // Update tracking
+              tracking.status = desiredHMI;
+              tracking.sentAtChargeStatus = currentChargeStatus;
+              appendLog(`Sent auto SetHMI with Status: ${desiredHMI} for ${cp} (charge status: ${currentChargeStatus})`, '', cp);
+              updateButtonStates(cp);
+            }
+          }
+        }
+        return;
       }
-    } else if (t0 === 3) {
-      if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
-        if (cmd === 'GetEVInfo') {
-          getEVInfoCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'getEVInfoTable');
+      if (cmd === 'StopTransaction') {
+        toggleStates[cp] = 'Start';
+        document.getElementById(`toggleBtn${cp}`).textContent = 'Start';
+        document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
+        showToast(`Received StopTransaction from ${cp}`);
+        updateButtonStates(cp);
+        // Reset tracking on stop to allow new auto SetHMI when status changes
+        hmiSentTracking[cp].status = null;
+        hmiSentTracking[cp].sentAtChargeStatus = null;
+      } else if (cmd === 'StartTransaction') {
+        toggleStates[cp] = 'Stop';
+        document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
+        document.getElementById(`toggleBtn${cp}`).classList.add('stop');
+        // Reset tracking on start to allow new auto SetHMI when status changes
+        hmiSentTracking[cp].status = null;
+        hmiSentTracking[cp].sentAtChargeStatus = null;
+      }
+      if (t0 === 2) {
+        if (cmd === 'StatusNotification' && o[3] && o[3].status) {
+          const newStatus = o[3].status;
+          const oldStatus = chargerStatus[cp];
+          chargerStatus[cp] = newStatus;
+          document.getElementById(`chargeStatus-${cp}`).textContent = chargerStatus[cp] || 'N/A';
+          if (newStatus === 'Charging' && chargingStatusTimeouts[cp]) {
+            clearTimeout(chargingStatusTimeouts[cp]);
+            chargingStatusTimeouts[cp] = null;
           }
-        } else if (cmd === 'GetConverter') {
-          getConverterCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'getConverterTable');
+          // If charge status changed, reset auto HMI tracking to allow sending new auto SetHMI on next heartbeat
+          if (newStatus !== oldStatus) {
+            const tracking = hmiSentTracking[cp];
+            if (tracking.sentAtChargeStatus !== 'manual') {
+              tracking.sentAtChargeStatus = null;
+              tracking.status = null;
+            }
           }
-        } else if (cmd === 'GetRelay') {
-          getRelayCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'getRelayTable');
+        }
+        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+          requestCommands[cp].add(cmd);
+          messagesByCP[cp].call.push({ command: cmd, raw, ts });
+        }
+      } else if (t0 === 3) {
+        if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
+          if (cmd === 'GetEVInfo') {
+            getEVInfoCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getEVInfoTable');
+            }
+          } else if (cmd === 'GetConverter') {
+            getConverterCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getConverterTable');
+            }
+          } else if (cmd === 'GetRelay') {
+            getRelayCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getRelayTable');
+            }
+          } else if (cmd === 'GetConnectorStatus') {
+            getConnectorStatusCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getConnectorStatusTable');
+            }
+          } else if (cmd === 'GetMeter') {
+            getMeterCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getMeterTable');
+            }
+          } else if (cmd === 'GetTemperature') {
+            getTemperatureCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getTemperatureTable');
+            } 
+          } else if (cmd === 'GetSystemError') {
+            getSystemErrorCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getSystemErrorTable');
+            } 
+          } else {
+            responseCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
           }
-        } else if (cmd === 'GetConnectorStatus') {
-          getConnectorStatusCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'getConnectorStatusTable');
-          }
-        } else if (cmd === 'GetMeter') {
-          getMeterCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'getMeterTable');
-          }
-        } else if (cmd === 'GetTemperature') {
-          getTemperatureCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'getTemperatureTable');
-          } 
-        } else if (cmd === 'GetSystemError') {
-          getSystemErrorCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
-          if (selectedCPs.includes(cp)) {
-            updateTable(cp, 'getSystemErrorTable');
-          } 
         } else {
-          responseCommands[cp].add(cmd);
-          messagesByCP[cp].result.push({ command: cmd, raw, ts });
+          messagesByCP[cp].result.push({ command: null, raw, ts });
         }
-      } else {
-        messagesByCP[cp].result.push({ command: null, raw, ts });
       }
+      console.log(`Calling updateConnectionStatus for ${cp} after message`);
+      updateConnectionStatus();
     }
-    console.log(`Calling updateConnectionStatus for ${cp} after message`);
-    updateConnectionStatus();
   }
-}
 
   function updateTable(cp, type) {
     if (!document.getElementById(`section-${cp}`)) return;
