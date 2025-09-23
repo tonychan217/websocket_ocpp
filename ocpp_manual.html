@@ -685,7 +685,6 @@
     'CP_06': { call: [], result: [] }
   };
   let chargingStatusTimeouts = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null };
-  // Track the last sent HMI status and the charge status when it was sent
   const hmiSentTracking = { 'CP_01': { status: null, sentAtChargeStatus: null }, 'CP_02': { status: null, sentAtChargeStatus: null }, 'CP_03': { status: null, sentAtChargeStatus: null }, 'CP_04': { status: null, sentAtChargeStatus: null }, 'CP_05': { status: null, sentAtChargeStatus: null }, 'CP_06': { status: null, sentAtChargeStatus: null } };
 
   function showToast(message) {
@@ -1207,7 +1206,6 @@
       }
       payload.Status = HMIStatus.value;
       lastSettings[cp].setHMI = { Status: payload.Status };
-      // Update tracking for manual SetHMI: mark it as sent manually, not tied to specific charge status
       hmiSentTracking[cp].status = payload.Status;
       hmiSentTracking[cp].sentAtChargeStatus = 'manual';
     } else if (command === 'setLED') {
@@ -1497,7 +1495,10 @@
         startNoResponseTimeout(cp);
         if (selectedCPs.includes(cp)) {
           updateConnectionStatus();
-          // Determine the desired HMI status based on current charge status
+          const tracking = hmiSentTracking[cp];
+          if (tracking.sentAtChargeStatus === 'manual') {
+            return;
+          }
           const currentChargeStatus = chargerStatus[cp];
           let desiredHMI;
           if (currentChargeStatus === 'Available' || currentChargeStatus === 'Preparing') {
@@ -1505,39 +1506,41 @@
           } else if (currentChargeStatus === 'Charging') {
             desiredHMI = 'Engaged';
           } else {
-            // For other statuses, don't auto-send
             return;
           }
-          // Check if we need to send SetHMI: only if charge status changed since last auto-send
-          const tracking = hmiSentTracking[cp];
-          const isManual = tracking.sentAtChargeStatus === 'manual';
-          if (!isManual && (tracking.sentAtChargeStatus !== currentChargeStatus)) {
-            // Send auto SetHMI
-            if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
-              const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-                (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-              );
-              const setHMIMessage = [
-                2,
-                uniqueId,
-                "DataTransfer",
-                {
-                  "vendorId": "Totex",
-                  "messageId": "1",
-                  "data": {
-                    command: "SetHMI",
-                    payload: { ChargerID: cp, Status: desiredHMI }
+          if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
+            let sendCount = 0;
+            function sendSetHMI() {
+              if (sendCount < 3 && wsConnections[cp]?.readyState === WebSocket.OPEN) {
+                const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+                  (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+                );
+                const setHMIMessage = [
+                  2,
+                  uniqueId,
+                  "DataTransfer",
+                  {
+                    "vendorId": "Totex",
+                    "messageId": "1",
+                    "data": {
+                      command: "SetHMI",
+                      payload: { ChargerID: cp, Status: desiredHMI }
+                    }
                   }
+                ];
+                wsConnections[cp].send(JSON.stringify(setHMIMessage));
+                lastSettings[cp].setHMI = { Status: desiredHMI };
+                tracking.status = desiredHMI;
+                tracking.sentAtChargeStatus = currentChargeStatus;
+                appendLog(`Sent auto SetHMI with Status: ${desiredHMI} for ${cp} (charge status: ${currentChargeStatus}, attempt ${sendCount + 1}/3)`, '', cp);
+                sendCount++;
+                if (sendCount < 3) {
+                  setTimeout(sendSetHMI, 1000);
                 }
-              ];
-              wsConnections[cp].send(JSON.stringify(setHMIMessage));
-              lastSettings[cp].setHMI = { Status: desiredHMI };
-              // Update tracking
-              tracking.status = desiredHMI;
-              tracking.sentAtChargeStatus = currentChargeStatus;
-              appendLog(`Sent auto SetHMI with Status: ${desiredHMI} for ${cp} (charge status: ${currentChargeStatus})`, '', cp);
-              updateButtonStates(cp);
+              }
             }
+            sendSetHMI();
+            updateButtonStates(cp);
           }
         }
         return;
@@ -1548,14 +1551,12 @@
         document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
         showToast(`Received StopTransaction from ${cp}`);
         updateButtonStates(cp);
-        // Reset tracking on stop to allow new auto SetHMI when status changes
         hmiSentTracking[cp].status = null;
         hmiSentTracking[cp].sentAtChargeStatus = null;
       } else if (cmd === 'StartTransaction') {
         toggleStates[cp] = 'Stop';
         document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
         document.getElementById(`toggleBtn${cp}`).classList.add('stop');
-        // Reset tracking on start to allow new auto SetHMI when status changes
         hmiSentTracking[cp].status = null;
         hmiSentTracking[cp].sentAtChargeStatus = null;
       }
@@ -1569,7 +1570,6 @@
             clearTimeout(chargingStatusTimeouts[cp]);
             chargingStatusTimeouts[cp] = null;
           }
-          // If charge status changed, reset auto HMI tracking to allow sending new auto SetHMI on next heartbeat
           if (newStatus !== oldStatus) {
             const tracking = hmiSentTracking[cp];
             if (tracking.sentAtChargeStatus !== 'manual') {
