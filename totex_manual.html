@@ -299,8 +299,7 @@
     .table-footer {
       display: flex;
       align-items: center;
-      margin-bottom: 1
-      rem;
+      margin-bottom: 1rem;
       gap: .5rem;
       width: 100%;
     }
@@ -345,17 +344,12 @@
     .toggle-btn.stop:hover {
       background: var(--emergency-btn-hover);
     }
-    .get-converter-btn,
     .set-converter-btn,
     .set-relay-btn,
     .set-hmi-btn,
     .set-led-btn,
-    .get-relay-btn,
-    .get-meter-btn,
-    .get-temperature-btn,
-    .get-connector-status-btn,
-    .get-ev-info-btn,
-    .get-system-error-btn {
+    .get-status-1s-btn,
+    .get-status-5s-btn {
       background: var(--table-header-bg);
       color: var(--text-color);
       border: 1px solid var(--border-color);
@@ -390,17 +384,12 @@
     .suffix-btn:hover {
       background: #3ca3f7;
     }
-    .get-converter-btn:hover,
     .set-converter-btn:hover,
     .set-relay-btn:hover,
     .set-hmi-btn:hover,
     .set-led-btn:hover,
-    .get-relay-btn:hover,
-    .get-meter-btn:hover,
-    .get-temperature-btn:hover,
-    .get-connector-status-btn:hover,
-    .get-ev-info-btn:hover,
-    .get-system-error-btn:hover {
+    .get-status-1s-btn:hover,
+    .get-status-5s-btn:hover {
       background: var(--command-btn-hover);
     }
     .emergency-btn:hover {
@@ -672,14 +661,9 @@
   };
   const requestCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
   const responseCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const getEVInfoCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const getConverterCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const getRelayCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const getConnectorStatusCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const getMeterCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const getTemperatureCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const getSystemErrorCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
-  const messagesByCP = {
+  const getStatus1sCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getStatus5sCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+ const messagesByCP = {
     'CP_01': { call: [], result: [] },
     'CP_02': { call: [], result: [] },
     'CP_03': { call: [], result: [] },
@@ -688,7 +672,6 @@
     'CP_06': { call: [], result: [] }
   };
   let chargingStatusTimeouts = { 'CP_01': null, 'CP_02': null, 'CP_03': null, 'CP_04': null, 'CP_05': null, 'CP_06': null };
-  // Track the last sent HMI status and the charge status when it was sent
   const hmiSentTracking = { 'CP_01': { status: null, sentAtChargeStatus: null }, 'CP_02': { status: null, sentAtChargeStatus: null }, 'CP_03': { status: null, sentAtChargeStatus: null }, 'CP_04': { status: null, sentAtChargeStatus: null }, 'CP_05': { status: null, sentAtChargeStatus: null }, 'CP_06': { status: null, sentAtChargeStatus: null } };
 
   function showToast(message) {
@@ -769,57 +752,25 @@
                                     <button id="setLEDBtn-no-cp" class="set-led-btn">SetLED</button>
                                 </div>
                                 <div class="button-row">
-                                    <button id="getConverterBtn-no-cp" class="get-converter-btn">GetConverter</button>
-                                    <button id="getRelayBtn-no-cp" class="get-relay-btn">GetRelay</button>
+                                    <button id="getStatus1sBtn-no-cp" class="get-status-1s-btn hidden">GetStatus1s</button>
+                                    <button id="getStatus5sBtn-no-cp" class="get-status-5s-btn hidden">GetStatus5s</button>
                                 </div>
-                                <div class="button-row">   
-                                    <button id="getConnectorStatusBtn-no-cp" class="get-connector-status-btn">GetConnectorStatus</button>
-                                    <button id="getEVInfoBtn-no-cp" class="get-ev-info-btn">GetEVInfo</button>
-                                </div>
-                                <div class="button-row">    
-                                    <button id="getMeterBtn-no-cp" class="get-meter-btn">GetMeter</button>
-                                    <button id="getTemperatureBtn-no-cp" class="get-temperature-btn">GetTemperature</button>
-                                </div>
-                                <div class="button-row">  
-                                    <button id="getSystemErrorBtn-no-cp" class="get-system-error-btn">GetSystemError</button>
+                                
+                                <div class="button-row">
+                                    <button id="getSystemErrorBtn-no-cp" class="get-system-error-btn hidden">GetSystemError</button>
                                 </div>
                                 <div class="button-row">
                                     <button id="toggleBtn-no-cp" class="toggle-btn">Start</button>
                                 </div>
                             </div>
                         </div>
-                        <div class="subheader">GetEVInfo</div>
-                        <table id="getEVInfo-desc-no-cp" class="result-desc">
+                        <div class="subheader">GetStatus1s</div>
+                        <table id="getStatus1s-desc-no-cp" class="result-desc">
                             <thead><tr><th>Name</th><th>Value</th></tr></thead>
                             <tbody></tbody>
                         </table>
-                        <div class="subheader">GetConverter</div>
-                        <table id="getConverter-desc-no-cp" class="result-desc">
-                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                        <div class="subheader">GetRelay</div>
-                        <table id="getRelay-desc-no-cp" class="result-desc">
-                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                        <div class="subheader">GetConnectorStatus</div>
-                        <table id="getConnectorStatus-desc-no-cp" class="result-desc">
-                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                        <div class="subheader">GetMeter</div>
-                        <table id="getMeter-desc-no-cp" class="result-desc">
-                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                        <div class="subheader">GetTemperature</div>
-                        <table id="getTemperature-desc-no-cp" class="result-desc">
-                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                        <div class="subheader">GetSystemError</div>
-                        <table id="getSystemError-desc-no-cp" class="result-desc">
+                        <div class="subheader">GetStatus5s</div>
+                        <table id="getStatus5s-desc-no-cp" class="result-desc">
                             <thead><tr><th>Name</th><th>Value</th></tr></thead>
                             <tbody></tbody>
                         </table>
@@ -828,8 +779,7 @@
             </div>
         `;
         ['setConverterBtn-no-cp', 'setRelayBtn-no-cp', 'setHMIBtn-no-cp', 'setLEDBtn-no-cp', 'toggleBtn-no-cp', 
-         'getConverterBtn-no-cp', 'getRelayBtn-no-cp', 'getConnectorStatusBtn-no-cp', 'getEVInfoBtn-no-cp', 
-         'getMeterBtn-no-cp', 'getTemperatureBtn-no-cp', 'getSystemErrorBtn-no-cp'].forEach(id => {
+         'getStatus1sBtn-no-cp', 'getStatus5sBtn-no-cp'].forEach(id => {
             document.getElementById(id).addEventListener('click', () => showToast('Please select CP'));
         });
         return;
@@ -863,58 +813,24 @@
                                 <button id="setLEDBtn-${cp}" class="set-led-btn">SetLED</button>
                             </div>
                             <div class="button-row">
-                                <button id="getConverterBtn-${cp}" class="get-converter-btn">GetConverter</button>
-                                <button id="getRelayBtn-${cp}" class="get-relay-btn">GetRelay</button>
-
+                                <button id="getStatus1sBtn-${cp}" class="get-status-1s-btn hidden">GetStatus1s</button>
+                                <button id="getStatus5sBtn-${cp}" class="get-status-1s-btn hidden">GetStatus5s</button>
                             </div>
                             <div class="button-row">
-                                <button id="getConnectorStatusBtn-${cp}" class="get-connector-status-btn">GetConnectorStatus</button>
-                                <button id="getEVInfoBtn-${cp}" class="get-ev-info-btn">GetEVInfo</button>
-                            </div>
-                            <div class="button-row">
-                                <button id="getMeterBtn-${cp}" class="get-meter-btn">GetMeter</button>
-                                <button id="getTemperatureBtn-${cp}" class="get-temperature-btn">GetTemperature</button>
-                            </div>
-                            <div class="button-row">  
-                                <button id="getSystemErrorBtn-${cp}" class="get-system-error-btn">GetSystemError</button>
+                                <button id="getSystemErrorBtn-${cp}" class="get-system-error-btn hidden">GetSystemError</button>
                             </div>
                             <div class="button-row">
                                 <button id="toggleBtn${cp}" class="toggle-btn ${toggleStates[cp] === 'Stop' ? 'stop' : ''}" data-cp="${cp}">${toggleStates[cp]}</button>
                             </div>
                         </div>
                     </div>
-                    <div class="subheader">GetEVInfo</div>
-                    <table id="getEVInfo-desc-${cp}" class="result-desc">
+                    <div class="subheader">GetStatus1s</div>
+                    <table id="getStatus1s-desc-${cp}" class="result-desc">
                         <thead><tr><th>Name</th><th>Value</th></tr></thead>
                         <tbody></tbody>
                     </table>
-                    <div class="subheader">GetConverter</div>
-                    <table id="getConverter-desc-${cp}" class="result-desc">
-                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                    <div class="subheader">GetRelay</div>
-                    <table id="getRelay-desc-${cp}" class="result-desc">
-                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                    <div class="subheader">GetConnectorStatus</div>
-                    <table id="getConnectorStatus-desc-${cp}" class="result-desc">
-                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                    <div class="subheader">GetMeter</div>
-                    <table id="getMeter-desc-${cp}" class="result-desc">
-                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                    <div class="subheader">GetTemperature</div>
-                    <table id="getTemperature-desc-${cp}" class="result-desc">
-                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                    <div class="subheader">GetSystemError</div>
-                    <table id="getSystemError-desc-${cp}" class="result-desc">
+                    <div class="subheader">GetStatus5s</div>
+                    <table id="getStatus5s-desc-${cp}" class="result-desc">
                         <thead><tr><th>Name</th><th>Value</th></tr></thead>
                         <tbody></tbody>
                     </table>
@@ -928,13 +844,8 @@
       document.getElementById(`setRelayBtn-${cp}`).addEventListener('click', () => showModal('setRelay', cp));
       document.getElementById(`setHMIBtn-${cp}`).addEventListener('click', () => showModal('setHMI', cp));
       document.getElementById(`setLEDBtn-${cp}`).addEventListener('click', () => showModal('setLED', cp));
-      document.getElementById(`getConverterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConverter', cp));
-      document.getElementById(`getRelayBtn-${cp}`).addEventListener('click', () => handleGetCommand('getRelay', cp));
-      document.getElementById(`getConnectorStatusBtn-${cp}`).addEventListener('click', () => handleGetCommand('getConnectorStatus', cp));
-      document.getElementById(`getEVInfoBtn-${cp}`).addEventListener('click', () => handleGetCommand('getEVInfo', cp));
-      document.getElementById(`getMeterBtn-${cp}`).addEventListener('click', () => handleGetCommand('getMeter', cp));
-      document.getElementById(`getTemperatureBtn-${cp}`).addEventListener('click', () => handleGetCommand('getTemperature', cp));
-      document.getElementById(`getSystemErrorBtn-${cp}`).addEventListener('click', () => handleGetCommand('getSystemError', cp));
+      document.getElementById(`getStatus1sBtn-${cp}`).addEventListener('click', () => handleGetCommand('getStatus1s', cp));
+      document.getElementById(`getStatus5sBtn-${cp}`).addEventListener('click', () => handleGetCommand('getStatus5s', cp));
       updateButtonStates(cp);
     });
 
@@ -1215,7 +1126,6 @@
       }
       payload.Status = HMIStatus.value;
       lastSettings[cp].setHMI = { Status: payload.Status };
-      // Update tracking for manual SetHMI: mark it as sent manually, not tied to specific charge status
       hmiSentTracking[cp].status = payload.Status;
       hmiSentTracking[cp].sentAtChargeStatus = 'manual';
     } else if (command === 'setLED') {
@@ -1377,28 +1287,55 @@
   }
 
   function setLatest(cp, desc, raw, type) {
-    desc.innerHTML = '';
+  desc.innerHTML = '';
 
-    let o;
-    try {
-      o = JSON.parse(raw);
-    } catch {
-      const r = document.createElement('tr'),
-            n = document.createElement('td'),
-            v = document.createElement('td');
-      n.textContent = 'raw';
-      v.textContent = raw;
-      r.append(n, v);
-      desc.appendChild(r);
-      return;
-    }
+  let o;
+  try {
+    o = JSON.parse(raw);
+  } catch {
+    const r = document.createElement('tr'),
+          n = document.createElement('td'),
+          v = document.createElement('td');
+    n.textContent = 'raw';
+    v.textContent = raw;
+    r.append(n, v);
+    desc.appendChild(r);
+    return;
+  }
 
-    if (Array.isArray(o)) {
-      if (o[0] === 2 || o[0] === 3) {
-        let payload = null;
-        if (type === 'call' && o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.payload) {
-          payload = o[3].data.payload;
-          Object.entries(payload).forEach(([k, v]) => {
+  if (Array.isArray(o)) {
+    if (o[0] === 2 || o[0] === 3) {
+      if (type === 'call' && o[3] && typeof o[3] === 'object' && o[3].data && o[3].data.payload) {
+        const payload = o[3].data.payload;
+        Object.entries(payload).forEach(([k, v]) => {
+          if (k === 'ChargerID') return;
+          const r = document.createElement('tr'),
+                n = document.createElement('td'),
+                v2 = document.createElement('td');
+          n.textContent = k;
+          v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
+          r.append(n, v2);
+          desc.appendChild(r);
+        });
+      } else if (type === 'result' && o[2] && typeof o[2] === 'object' && o[2].data) {
+        let data = o[2].data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            console.error('Failed to parse data field:', data);
+            const r = document.createElement('tr'),
+                  n = document.createElement('td'),
+                  v2 = document.createElement('td');
+            n.textContent = 'error';
+            v2.textContent = 'Failed to parse data';
+            r.append(n, v2);
+            desc.appendChild(r);
+            return;
+          }
+        }
+        if (data.payload && typeof data.payload === 'object') {
+          Object.entries(data.payload).forEach(([k, v]) => {
             if (k === 'ChargerID') return;
             const r = document.createElement('tr'),
                   n = document.createElement('td'),
@@ -1408,64 +1345,27 @@
             r.append(n, v2);
             desc.appendChild(r);
           });
-        } else if (type === 'result' && o[2] && typeof o[2] === 'object' && o[2].data) {
-          let data = o[2].data;
-          if (typeof data === 'string') {
-            try {
-              data = JSON.parse(data);
-            } catch {
-              console.error('Failed to parse data field:', data);
-              return;
-            }
-          }
-          if (data.command === 'GetEVInfo' && data.payload) {
-            const desiredOrder = ['Capacity', 'SoC', 'SoH', 'ChargeVoltage', 'ChargeCurrent'];
-            desiredOrder.forEach(key => {
-              if (key in data.payload) {
-                const r = document.createElement('tr'),
-                      n = document.createElement('td'),
-                      v = document.createElement('td');
-                n.textContent = key;
-                v.textContent = String(data.payload[key]);
-                r.append(n, v);
-                desc.appendChild(r);
-              }
-            });
-          } else if (data.payload) {
-            const flattenedPayload = flattenObject(data.payload);
-            Object.entries(flattenedPayload).forEach(([k, v]) => {
-              const r = document.createElement('tr'),
-                    n = document.createElement('td'),
-                    v2 = document.createElement('td');
-              n.textContent = k;
-              v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
-              r.append(n, v2);
-              desc.appendChild(r);
-            });
-          }
+        } else {
+          const r = document.createElement('tr'),
+                n = document.createElement('td'),
+                v2 = document.createElement('td');
+          n.textContent = 'data';
+          v2.textContent = JSON.stringify(data);
+          r.append(n, v2);
+          desc.appendChild(r);
         }
       }
-    } else if (o && typeof o === 'object') {
-      const flattenedObj = flattenObject(o);
-      Object.entries(flattenedObj).forEach(([k, v]) => {
-        const r = document.createElement('tr'),
-              n = document.createElement('td'),
-              v2 = document.createElement('td');
-        n.textContent = k;
-        v2.textContent = typeof v === 'object' ? JSON.stringify(v) : String(v);
-        r.append(n, v2);
-        desc.appendChild(r);
-      });
-    } else {
-      const r = document.createElement('tr'),
-            n = document.createElement('td'),
-            v2 = document.createElement('td');
-      n.textContent = 'value';
-      v2.textContent = String(o);
-      r.append(n, v2);
-      desc.appendChild(r);
     }
+  } else {
+    const r = document.createElement('tr'),
+          n = document.createElement('td'),
+          v2 = document.createElement('td');
+    n.textContent = 'value';
+    v2.textContent = String(o);
+    r.append(n, v2);
+    desc.appendChild(r);
   }
+}
 
   function categorize(raw, cp) {
     let o;
@@ -1505,7 +1405,10 @@
         startNoResponseTimeout(cp);
         if (selectedCPs.includes(cp)) {
           updateConnectionStatus();
-          // Determine the desired HMI status based on current charge status
+          const tracking = hmiSentTracking[cp];
+          if (tracking.sentAtChargeStatus === 'manual') {
+            return;
+          }
           const currentChargeStatus = chargerStatus[cp];
           let desiredHMI;
           if (currentChargeStatus === 'Available' || currentChargeStatus === 'Preparing') {
@@ -1513,39 +1416,41 @@
           } else if (currentChargeStatus === 'Charging') {
             desiredHMI = 'Engaged';
           } else {
-            // For other statuses, don't auto-send
             return;
           }
-          // Check if we need to send SetHMI: only if charge status changed since last auto-send
-          const tracking = hmiSentTracking[cp];
-          const isManual = tracking.sentAtChargeStatus === 'manual';
-          if (!isManual && (tracking.sentAtChargeStatus !== currentChargeStatus)) {
-            // Send auto SetHMI
-            if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
-              const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
-                (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
-              );
-              const setHMIMessage = [
-                2,
-                uniqueId,
-                "DataTransfer",
-                {
-                  "vendorId": "Totex",
-                  "messageId": "1",
-                  "data": {
-                    command: "SetHMI",
-                    payload: { ChargerID: cp, Status: desiredHMI }
+          if (wsConnections[cp]?.readyState === WebSocket.OPEN) {
+            let sendCount = 0;
+            function sendSetHMI() {
+              if (sendCount < 3 && wsConnections[cp]?.readyState === WebSocket.OPEN) {
+                const uniqueId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>
+                  (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)
+                );
+                const setHMIMessage = [
+                  2,
+                  uniqueId,
+                  "DataTransfer",
+                  {
+                    "vendorId": "Totex",
+                    "messageId": "1",
+                    "data": {
+                      command: "SetHMI",
+                      payload: { ChargerID: cp, Status: desiredHMI }
+                    }
                   }
+                ];
+                wsConnections[cp].send(JSON.stringify(setHMIMessage));
+                lastSettings[cp].setHMI = { Status: desiredHMI };
+                tracking.status = desiredHMI;
+                tracking.sentAtChargeStatus = currentChargeStatus;
+                appendLog(`Sent auto SetHMI with Status: ${desiredHMI} for ${cp} (charge status: ${currentChargeStatus}, attempt ${sendCount + 1}/3)`, '', cp);
+                sendCount++;
+                if (sendCount < 3) {
+                  setTimeout(sendSetHMI, 1000);
                 }
-              ];
-              wsConnections[cp].send(JSON.stringify(setHMIMessage));
-              lastSettings[cp].setHMI = { Status: desiredHMI };
-              // Update tracking
-              tracking.status = desiredHMI;
-              tracking.sentAtChargeStatus = currentChargeStatus;
-              appendLog(`Sent auto SetHMI with Status: ${desiredHMI} for ${cp} (charge status: ${currentChargeStatus})`, '', cp);
-              updateButtonStates(cp);
+              }
             }
+            sendSetHMI();
+            updateButtonStates(cp);
           }
         }
         return;
@@ -1556,14 +1461,12 @@
         document.getElementById(`toggleBtn${cp}`).classList.remove('stop');
         showToast(`Received StopTransaction from ${cp}`);
         updateButtonStates(cp);
-        // Reset tracking on stop to allow new auto SetHMI when status changes
         hmiSentTracking[cp].status = null;
         hmiSentTracking[cp].sentAtChargeStatus = null;
       } else if (cmd === 'StartTransaction') {
         toggleStates[cp] = 'Stop';
         document.getElementById(`toggleBtn${cp}`).textContent = 'Stop';
         document.getElementById(`toggleBtn${cp}`).classList.add('stop');
-        // Reset tracking on start to allow new auto SetHMI when status changes
         hmiSentTracking[cp].status = null;
         hmiSentTracking[cp].sentAtChargeStatus = null;
       }
@@ -1577,7 +1480,6 @@
             clearTimeout(chargingStatusTimeouts[cp]);
             chargingStatusTimeouts[cp] = null;
           }
-          // If charge status changed, reset auto HMI tracking to allow sending new auto SetHMI on next heartbeat
           if (newStatus !== oldStatus) {
             const tracking = hmiSentTracking[cp];
             if (tracking.sentAtChargeStatus !== 'manual') {
@@ -1592,48 +1494,18 @@
         }
       } else if (t0 === 3) {
         if (cmd && typeof cmd === 'string' && cmd.trim() !== '') {
-          if (cmd === 'GetEVInfo') {
-            getEVInfoCommands[cp].add(cmd);
+          if (cmd === 'GetStatus1s') {
+            getStatus1sCommands[cp].add(cmd);
             messagesByCP[cp].result.push({ command: cmd, raw, ts });
             if (selectedCPs.includes(cp)) {
-              updateTable(cp, 'getEVInfoTable');
+              updateTable(cp, 'getStatus1sTable');
             }
-          } else if (cmd === 'GetConverter') {
-            getConverterCommands[cp].add(cmd);
+          } else if (cmd === 'GetStatus5s') {
+            getStatus5sCommands[cp].add(cmd);
             messagesByCP[cp].result.push({ command: cmd, raw, ts });
             if (selectedCPs.includes(cp)) {
-              updateTable(cp, 'getConverterTable');
+              updateTable(cp, 'getStatus5sTable');
             }
-          } else if (cmd === 'GetRelay') {
-            getRelayCommands[cp].add(cmd);
-            messagesByCP[cp].result.push({ command: cmd, raw, ts });
-            if (selectedCPs.includes(cp)) {
-              updateTable(cp, 'getRelayTable');
-            }
-          } else if (cmd === 'GetConnectorStatus') {
-            getConnectorStatusCommands[cp].add(cmd);
-            messagesByCP[cp].result.push({ command: cmd, raw, ts });
-            if (selectedCPs.includes(cp)) {
-              updateTable(cp, 'getConnectorStatusTable');
-            }
-          } else if (cmd === 'GetMeter') {
-            getMeterCommands[cp].add(cmd);
-            messagesByCP[cp].result.push({ command: cmd, raw, ts });
-            if (selectedCPs.includes(cp)) {
-              updateTable(cp, 'getMeterTable');
-            }
-          } else if (cmd === 'GetTemperature') {
-            getTemperatureCommands[cp].add(cmd);
-            messagesByCP[cp].result.push({ command: cmd, raw, ts });
-            if (selectedCPs.includes(cp)) {
-              updateTable(cp, 'getTemperatureTable');
-            } 
-          } else if (cmd === 'GetSystemError') {
-            getSystemErrorCommands[cp].add(cmd);
-            messagesByCP[cp].result.push({ command: cmd, raw, ts });
-            if (selectedCPs.includes(cp)) {
-              updateTable(cp, 'getSystemErrorTable');
-            } 
           } else {
             responseCommands[cp].add(cmd);
             messagesByCP[cp].result.push({ command: cmd, raw, ts });
@@ -1649,21 +1521,16 @@
 
   function updateTable(cp, type) {
     if (!document.getElementById(`section-${cp}`)) return;
-    const tableType = type === 'getEVInfoTable' ? 'getEVInfo' : 
-                     type === 'getConverterTable' ? 'getConverter' : 
-                     type === 'getRelayTable' ? 'getRelay' : 
-                     type === 'getConnectorStatusTable' ? 'getConnectorStatus' : 
-                     type === 'getMeterTable' ? 'getMeter' : 
-                     type === 'getTemperatureTable' ? 'getTemperature' : 
-                     type === 'getSystemErrorTable' ? 'getSystemError' : type;
+    const tableType = type === 'getStatus1sTable' ? 'getStatus1s' : 
+                     type === 'getStatus5sTable' ? 'getStatus5s' : type;
     const desc = document.getElementById(`${tableType}-desc-${cp}`)?.querySelector('tbody');
 
     if (!desc) return;
     desc.innerHTML = '';
-    const arr = messagesByCP[cp][type === 'getEVInfoTable' || type === 'getConverterTable' || type === 'getRelayTable' || type === 'getConnectorStatusTable' || type === 'getMeterTable' || type === 'getTemperatureTable'  || type === 'getSystemErrorTable' ? 'result' : type];
+    const arr = messagesByCP[cp][type === 'getStatus1sTable' || type === 'getStatus5sTable' ? 'result' : type];
     if (arr.length > 0) {
       const latestMessage = arr[arr.length - 1];
-      setLatest(cp, desc, latestMessage.raw, type === 'getEVInfoTable' || type === 'getConverterTable' || type === 'getRelayTable' || type === 'getConnectorStatusTable' || type === 'getMeterTable' || type === 'getTemperatureTable'  || type === 'getSystemErrorTable' ? 'result' : type);
+      setLatest(cp, desc, latestMessage.raw, type === 'getStatus1sTable' || type === 'getStatus5sTable' ? 'result' : type);
     }
   }
 
@@ -1678,13 +1545,8 @@
       startNoResponseTimeout(cp);
       if (selectedCPs.includes(cp)) {
         updateConnectionStatus();
-        updateTable(cp, 'getEVInfoTable');
-        updateTable(cp, 'getConverterTable');
-        updateTable(cp, 'getRelayTable');
-        updateTable(cp, 'getConnectorStatusTable');
-        updateTable(cp, 'getMeterTable');
-        updateTable(cp, 'getTemperatureTable');
-        updateTable(cp, 'getSystemErrorTable');
+        updateTable(cp, 'getStatus1sTable');
+        updateTable(cp, 'getStatus5sTable');
       }
     };
     wsConnections[cp].onmessage = (ev) => {
@@ -1722,13 +1584,8 @@
 
   function autoSendGetCommands(cp) {
     const commands = [
-      'getConverter',
-      'getRelay',
-      'getConnectorStatus',
-      'getEVInfo',
-      'getMeter',
-      'getTemperature',
-      'getSystemError'
+      'getStatus1s',
+      'getStatus5s'
     ];
     let index = 0;
 
@@ -1736,10 +1593,10 @@
       if (index < commands.length && selectedCPs.includes(cp) && wsConnections[cp]?.readyState === WebSocket.OPEN) {
         handleGetCommand(commands[index], cp);
         index++;
-        setTimeout(sendNextCommand, 10000);
+        setTimeout(sendNextCommand, 1000);
       } else {
         index = 0;
-        setTimeout(sendNextCommand, 10000);
+        setTimeout(sendNextCommand, 1000);
       }
     }
 
