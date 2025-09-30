@@ -23,7 +23,7 @@ def current_time() -> str:
 async def handler(websocket, path=None):  # Remove default path
     actual_path = websocket.request.path or "/"  # Use actual path, default to "/" if None
     addr = websocket.remote_address
-    allowed_paths = ["/CP_01", "/CP_02", "/CP_03", "/Ctr"]
+    allowed_paths = ["/CP_01", "/CP_02", "/CP_03", "/CP_04", "/CP_05", "/CP_06"]
     if actual_path not in allowed_paths:
         await websocket.close(code=1008)
         return
@@ -31,6 +31,27 @@ async def handler(websocket, path=None):  # Remove default path
     suffix = actual_path
     print(f"[{current_time()}] (づ｡◕‿‿◕｡)づ Connected: {addr}{suffix}")
     connected.add(websocket)
+
+    # Send TriggerMessage for CP_0x when connected
+    if actual_path in ["/CP_01", "/CP_02", "/CP_03", "/CP_04", "/CP_05", "/CP_06"]:
+        
+        ws_unique_id = uuid.uuid4().hex
+        trigger_msg = [
+            2,
+            ws_unique_id,
+            "TriggerMessage",
+            {
+                "requestedMessage": "StatusNotification",
+                "connectorId": 1
+            }
+        ]
+        text = json.dumps(trigger_msg)
+        try:
+            await websocket.send(text)
+            print(f"[{current_time()}] ✨ Sent TriggerMessage CALL → {text!r}")
+        except:
+            connected.discard(websocket)
+            return
 
     try:
         async for raw in websocket:
@@ -70,10 +91,10 @@ async def handler(websocket, path=None):  # Remove default path
 
                 call_msg = [2, ws_unique_id, action, payload]
                 text = json.dumps(call_msg)
-                # Send only to clients connected to the same path or /Ctr
+                # Send only to clients connected to the same path
                 dead = set()
                 for ws in connected:
-                    if ws.request.path in [actual_path, "/Ctr"]:
+                    if ws.request.path in [actual_path]:
                         try:
                             await ws.send(text)
                         except:
@@ -84,42 +105,21 @@ async def handler(websocket, path=None):  # Remove default path
                 # Skip all other logic for this raw message
                 continue
 
-            if cmd in ("getConverter", "getConnectorStatus", "getEVInfo", "getRelay", "getMeter", "getTemperature"):
+            if cmd in ("getStatus1s", "getStatus5s"):
                 ws_unique_id = uuid.uuid4().hex
-                if cmd == "getConverter":
-                    action = "GetConverter"
+
+                if cmd == "getStatus1s":
+                    action = "GetStatus1s"
                     payload = {
                         "ChargerID": actual_path.lstrip('/')
                     }
            
-                elif cmd == "getConnectorStatus":
-                    action = "GetConnectorStatus"
+                elif cmd == "getStatus5s":
+                    action = "GetStatus5s"
                     payload = {
                         "ChargerID": actual_path.lstrip('/')
                     }
-                elif cmd == "getEVInfo":
-                    action = "GetEVInfo"
-                    payload = {
-                        "ChargerID": actual_path.lstrip('/')
-                    }
-
-                elif cmd == "getRelay":
-                    action = "GetRelay"
-                    payload = {
-                        "ChargerID": actual_path.lstrip('/')
-                    }
-                    
-                elif cmd == "getMeter":
-                    action = "GetMeter"
-                    payload = {
-                        "ChargerID": actual_path.lstrip('/')
-                    }
-
-                elif cmd == "getTemperature":
-                    action = "GetTemperature"
-                    payload = {
-                        "ChargerID": actual_path.lstrip('/')
-                    }
+                
 
                 call_msg = [
                     2,
@@ -132,10 +132,10 @@ async def handler(websocket, path=None):  # Remove default path
                     }
                 ]
                 text = json.dumps(call_msg)
-                # Send only to clients connected to the same path or /Ctr
+                # Send only to clients connected to the same path
                 dead = set()
                 for ws in connected:
-                    if ws.request.path in [actual_path, "/Ctr"]:
+                    if ws.request.path in [actual_path]:
                         try:
                             await ws.send(text)
                         except:
@@ -146,10 +146,10 @@ async def handler(websocket, path=None):  # Remove default path
                 # Skip all other logic for this raw message
                 continue
 
-            # ── Broadcast incoming message to clients on the same path or /Ctr ──
+            # ── Broadcast incoming message to clients on the same path ─
             dead = set()
             for ws in connected:
-                if ws is websocket or ws.request.path not in [actual_path, "/Ctr"]:
+                if ws is websocket or ws.request.path not in [actual_path]:
                     continue
                 try:
                     await ws.send(raw)
@@ -179,7 +179,7 @@ async def handler(websocket, path=None):  # Remove default path
                     if uid > prev:
                         boot_unique_ids[websocket] = uid
                 except (ValueError, TypeError):
-                    pass
+                    pass  
 
                 # If it was a BootNotification, send "Accepted" and store unique_id
                 if action == "BootNotification":
@@ -197,6 +197,25 @@ async def handler(websocket, path=None):  # Remove default path
                     wss_text = json.dumps(wss_call)
                     await websocket.send(wss_text)
                     print(f"[{ts}] ✿ Sent StatusNotification RES → {wss_text!r}")
+                    # Check if status is "Finishing" and send TriggerMessage
+                    if isinstance(payload, dict) and payload.get("status") == "Finishing":
+                        ws_unique_id = uuid.uuid4().hex
+                        trigger_msg = [
+                            2,
+                            ws_unique_id,
+                            "TriggerMessage",
+                            {
+                                "requestedMessage": "StatusNotification",
+                                "connectorId": 1
+                            }
+                        ]
+                        trigger_text = json.dumps(trigger_msg)
+                        try:
+                            await websocket.send(trigger_text)
+                            print(f"[{ts}] ✨ Sent TriggerMessage CALL → {trigger_text!r}")
+                        except:
+                            connected.discard(websocket)
+                            return
 
                 # Send Heartbeat after receiving clients' heartbeat
                 if action == "Heartbeat":
