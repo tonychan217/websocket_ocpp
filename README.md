@@ -6,12 +6,12 @@
 - Set environment:
   * $> source myenv/bin/activate
 
-- Websocket server:
+- Websocket server (Select OCPP1.6/2.0.1):
   * $> git clone https://github.com/tonychan217/websocket_ocpp.git
   * $> cd websocket_ocpp
   * $> python server_ocpp.py
 
-- Startup service:
+- Startup service (Optional):
   * $> sudo nano /etc/systemd/system/server_ocpp.service
   * $> sudo systemctl daemon-reload
 
