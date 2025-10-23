@@ -663,6 +663,7 @@
   const responseCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
   const getStatus1sCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
   const getStatus5sCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
+  const getSystemErrorCommands = { 'CP_01': new Set(['all']), 'CP_02': new Set(['all']), 'CP_03': new Set(['all']),'CP_04': new Set(['all']), 'CP_05': new Set(['all']), 'CP_06': new Set(['all'])};
  const messagesByCP = {
     'CP_01': { call: [], result: [] },
     'CP_02': { call: [], result: [] },
@@ -754,10 +755,7 @@
                                 <div class="button-row">
                                     <button id="getStatus1sBtn-no-cp" class="get-status-1s-btn hidden">GetStatus1s</button>
                                     <button id="getStatus5sBtn-no-cp" class="get-status-5s-btn hidden">GetStatus5s</button>
-                                </div>
-                                
-                                <div class="button-row">
-                                    <button id="getSystemErrorBtn-no-cp" class="get-system-error-btn hidden">GetSystemError</button>
+                                    <button id="getSystemErrorBtn-no-cp" class="get-system-error-btn hidden">GetSystemErr</button>
                                 </div>
                                 <div class="button-row">
                                     <button id="toggleBtn-no-cp" class="toggle-btn">Start</button>
@@ -774,12 +772,17 @@
                             <thead><tr><th>Name</th><th>Value</th></tr></thead>
                             <tbody></tbody>
                         </table>
+                        <div class="subheader">GetSystemError</div>
+                        <table id="getSystemError-desc-no-cp" class="result-desc">
+                            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         `;
         ['setConverterBtn-no-cp', 'setRelayBtn-no-cp', 'setHMIBtn-no-cp', 'setLEDBtn-no-cp', 'toggleBtn-no-cp', 
-         'getStatus1sBtn-no-cp', 'getStatus5sBtn-no-cp'].forEach(id => {
+         'getStatus1sBtn-no-cp', 'getStatus5sBtn-no-cp', 'getSystemErrorBtn-no-cp'].forEach(id => {
             document.getElementById(id).addEventListener('click', () => showToast('Please select CP'));
         });
         return;
@@ -815,9 +818,7 @@
                             <div class="button-row">
                                 <button id="getStatus1sBtn-${cp}" class="get-status-1s-btn hidden">GetStatus1s</button>
                                 <button id="getStatus5sBtn-${cp}" class="get-status-1s-btn hidden">GetStatus5s</button>
-                            </div>
-                            <div class="button-row">
-                                <button id="getSystemErrorBtn-${cp}" class="get-system-error-btn hidden">GetSystemError</button>
+                                <button id="getSystemErrorBtn-${cp}" class="get-system-error-btn hidden">GetSystemErr</button>
                             </div>
                             <div class="button-row">
                                 <button id="toggleBtn${cp}" class="toggle-btn ${toggleStates[cp] === 'Stop' ? 'stop' : ''}" data-cp="${cp}">${toggleStates[cp]}</button>
@@ -834,6 +835,11 @@
                         <thead><tr><th>Name</th><th>Value</th></tr></thead>
                         <tbody></tbody>
                     </table>
+                    <div class="subheader">GetSystemError</div>
+                    <table id="getSystemError-desc-${cp}" class="result-desc">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
         `;
@@ -846,6 +852,7 @@
       document.getElementById(`setLEDBtn-${cp}`).addEventListener('click', () => showModal('setLED', cp));
       document.getElementById(`getStatus1sBtn-${cp}`).addEventListener('click', () => handleGetCommand('getStatus1s', cp));
       document.getElementById(`getStatus5sBtn-${cp}`).addEventListener('click', () => handleGetCommand('getStatus5s', cp));
+      document.getElementById(`getSystemErrorBtn-${cp}`).addEventListener('click', () => handleGetCommand('getSystemError', cp));
       updateButtonStates(cp);
     });
 
@@ -1506,6 +1513,12 @@
             if (selectedCPs.includes(cp)) {
               updateTable(cp, 'getStatus5sTable');
             }
+          } else if (cmd === 'GetSystemError') {
+            getSystemErrorCommands[cp].add(cmd);
+            messagesByCP[cp].result.push({ command: cmd, raw, ts });
+            if (selectedCPs.includes(cp)) {
+              updateTable(cp, 'getSystemErrorTable');
+            }
           } else {
             responseCommands[cp].add(cmd);
             messagesByCP[cp].result.push({ command: cmd, raw, ts });
@@ -1522,15 +1535,16 @@
   function updateTable(cp, type) {
     if (!document.getElementById(`section-${cp}`)) return;
     const tableType = type === 'getStatus1sTable' ? 'getStatus1s' : 
-                     type === 'getStatus5sTable' ? 'getStatus5s' : type;
+                     type === 'getStatus5sTable' ? 'getStatus5s' : 
+                     type === 'getSystemErrorTable' ? 'getSystemError' : type;
     const desc = document.getElementById(`${tableType}-desc-${cp}`)?.querySelector('tbody');
 
     if (!desc) return;
     desc.innerHTML = '';
-    const arr = messagesByCP[cp][type === 'getStatus1sTable' || type === 'getStatus5sTable' ? 'result' : type];
+    const arr = messagesByCP[cp][type === 'getStatus1sTable' || type === 'getStatus5sTable' || type === 'getSystemErrorTable' ? 'result' : type];
     if (arr.length > 0) {
       const latestMessage = arr[arr.length - 1];
-      setLatest(cp, desc, latestMessage.raw, type === 'getStatus1sTable' || type === 'getStatus5sTable' ? 'result' : type);
+      setLatest(cp, desc, latestMessage.raw, type === 'getStatus1sTable' || type === 'getStatus5sTable' || type === 'getSystemErrorTable' ? 'result' : type);
     }
   }
 
@@ -1547,6 +1561,7 @@
         updateConnectionStatus();
         updateTable(cp, 'getStatus1sTable');
         updateTable(cp, 'getStatus5sTable');
+        updateTable(cp, 'getSystemErrorTable');
       }
     };
     wsConnections[cp].onmessage = (ev) => {
@@ -1585,7 +1600,8 @@
   function autoSendGetCommands(cp) {
     const commands = [
       'getStatus1s',
-      'getStatus5s'
+      'getStatus5s',
+      'getSystemError'
     ];
     let index = 0;
 
