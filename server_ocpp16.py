@@ -105,7 +105,7 @@ async def handler(websocket, path=None):  # Remove default path
                 # Skip all other logic for this raw message
                 continue
 
-            if cmd in ("getStatus1s", "getStatus5s"):
+            if cmd in ("getStatus1s", "getStatus5s", "getSystemError"):
                 ws_unique_id = uuid.uuid4().hex
 
                 if cmd == "getStatus1s":
@@ -116,6 +116,12 @@ async def handler(websocket, path=None):  # Remove default path
            
                 elif cmd == "getStatus5s":
                     action = "GetStatus5s"
+                    payload = {
+                        "ChargerID": actual_path.lstrip('/')
+                    }
+
+                elif cmd == "getSystemError":
+                    action = "GetSystemError"
                     payload = {
                         "ChargerID": actual_path.lstrip('/')
                     }
